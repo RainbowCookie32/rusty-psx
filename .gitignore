@@ -1,0 +1,7 @@
+/.vscode
+/target
+**/*.rs.bk
+
+# ROM files and PSX executables.
+*.bin
+*.exe

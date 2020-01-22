@@ -1,0 +1,610 @@
+use std::io::Read;
+use std::fs::File;
+use std::path::PathBuf;
+
+use super::memory;
+
+
+pub struct Instruction {
+    value: u32
+}
+
+impl Instruction {
+    pub fn new(value: u32) -> Instruction {
+        Instruction {
+            value: value,
+        }
+    }
+
+    pub fn op(&self) -> u32 {
+        (self.value >> 26) & 0x3F
+    }
+
+    pub fn rs(&self) -> u32 {
+        (self.value >> 21) & 0x1F
+    }
+
+    pub fn rt(&self) -> u32 {
+        (self.value >> 16) & 0x1F
+    }
+
+    pub fn rd(&self) -> u32 {
+        (self.value >> 11) & 0x1F
+    }
+
+    pub fn shift(&self) -> u32 {
+        (self.value >> 6) & 0x1F
+    }
+
+    pub fn function(&self) -> u32 {
+        self.value & 0x3F
+    }
+
+    pub fn immediate(&self) -> u32 {
+        self.value & 0xFFFF
+    }
+
+    pub fn target(&self) -> u32 {
+        self.value & 0x03FFFFFF
+    }
+}
+
+pub struct Cpu {
+    pub pc: u32,
+    pub hi: u32,
+    pub lo: u32,
+    pub registers: Vec<u32>,
+
+    pub cop0_registers: Vec<u32>,
+
+    pub memory: memory::CpuMemory,
+
+    pub next_instruction: Instruction,
+    pub current_instruction: Instruction,
+}
+
+impl Cpu {
+    pub fn new() -> Cpu {
+        
+        let mut bios_data = Vec::with_capacity(512);
+        let mut bios_file = File::open(PathBuf::from("SCPH1001.bin")).unwrap();
+
+        bios_file.read_to_end(&mut bios_data).unwrap();
+        
+        Cpu {
+            pc: 0xBFC00000,
+            hi: 0,
+            lo: 0,
+            registers: vec![0; 32],
+
+            cop0_registers: vec![0; 16],
+
+            memory: memory::CpuMemory::new(bios_data),
+
+            next_instruction: Instruction::new(0),
+            current_instruction: Instruction::new(0),
+        }
+    }
+
+    pub fn start_cpu(&mut self) {
+        loop {
+            self.run_instruction();
+        }
+    }
+
+    fn set_register(&mut self, idx: usize, value: u32) {
+        self.registers[idx] = value;
+        self.registers[0] = 0;
+    }
+
+    fn fetch_instruction(&mut self) {
+        self.current_instruction = Instruction::new(self.memory.read_word(self.pc));
+        self.next_instruction = Instruction::new(self.memory.read_word(self.pc + 4));
+    }
+
+    fn run_instruction(&mut self) {
+
+        self.fetch_instruction();
+
+        match self.current_instruction.op() {
+
+            0x00 => match self.current_instruction.function() {
+                0x00 => self.sll(),
+                0x01 => {},
+                0x02 => self.srl(),
+                0x03 => self.sra(),
+                0x04 => self.sllv(),
+                0x05 => {},
+                0x06 => self.srlv(),
+                0x07 => self.srav(),
+
+                0x08 => self.jr(),
+                0x09 => self.jalr(),
+                0x0A => {},
+                0x0B => {},
+                0x0C => self.syscall(),
+                0x0D => self.break_op(),
+                0x0E => {},
+                0x0F => {},
+
+                0x10 => self.mfhi(),
+                0x11 => self.mthi(),
+                0x12 => self.mflo(),
+                0x13 => self.mtlo(),
+                0x14 => {},
+                0x15 => {},
+                0x16 => {},
+                0x17 => {},
+
+                0x18 => self.mult(),
+                0x19 => self.multu(),
+                0x1A => self.div(),
+                0x1B => self.divu(),
+                0x1C => {},
+                0x1D => {},
+                0x1E => {},
+                0x1F => {},
+
+                0x20 => self.add(),
+                0x21 => self.addu(),
+                0x22 => self.sub(),
+                0x23 => self.subu(),
+                0x24 => self.and(),
+                0x25 => self.or(),
+                0x26 => self.xor(),
+                0x27 => self.nor(),
+
+                0x28 => {},
+                0x29 => {},
+                0x2A => self.slt(),
+                0x2B => self.sltu(),
+                0x2C => {},
+                0x2D => {},
+                0x2E => {},
+                0x2F => {},
+
+                0x30 => {},
+                0x31 => {},
+                0x32 => {},
+                0x33 => {},
+                0x34 => {},
+                0x35 => {},
+                0x36 => {},
+                0x37 => {},
+
+                0x38 => {},
+                0x39 => {},
+                0x3A => {},
+                0x3B => {},
+                0x3C => {},
+                0x3D => {},
+                0x3E => {},
+                0x3F => {},
+
+                _=> {}
+            }
+            0x01 => match self.current_instruction.rt() {
+                0x00 => self.bltz(),
+                0x01 => self.bgez(),
+                0x10 => self.bltzal(),
+                0x11 => self.bgezal(),
+                _ => panic!("Invalid argument in branch instruction"),
+            }
+            0x02 => self.j(),
+            0x03 => self.jal(),
+            0x04 => self.beq(),
+            0x05 => self.bne(),
+            0x06 => self.blez(),
+            0x07 => self.bgtz(),
+
+            0x08 => self.addi(),
+            0x09 => self.addiu(),
+            0x0A => self.slti(),
+            0x0B => self.sltiu(),
+            0x0C => self.andi(),
+            0x0D => self.ori(),
+            0x0E => self.xori(),
+            0x0F => self.lui(),
+
+            0x10 => self.cop0(),
+            0x11 => {},
+            0x12 => {},
+            0x13 => {},
+            0x14 => {},
+            0x15 => {},
+            0x16 => {},
+            0x17 => {},
+
+            0x18 => {},
+            0x19 => {},
+            0x1A => {},
+            0x1B => {},
+            0x1C => {},
+            0x1D => {},
+            0x1E => {},
+            0x1F => {},
+
+            0x20 => self.lb(),
+            0x21 => self.lh(),
+            0x22 => self.lwl(),
+            0x23 => self.lw(),
+            0x24 => self.lbu(),
+            0x25 => self.lhu(),
+            0x26 => self.lwr(),
+            0x27 => {},
+
+            0x28 => self.sb(),
+            0x29 => self.sh(),
+            0x2A => self.swl(),
+            0x2B => self.sw(),
+            0x2C => {},
+            0x2D => {},
+            0x2E => self.swr(),
+            0x2F => {},
+
+            0x30 => {},
+            0x31 => {},
+            0x32 => {},
+            0x33 => {},
+            0x34 => {},
+            0x35 => {},
+            0x36 => {},
+            0x37 => {},
+
+            0x38 => {},
+            0x39 => {},
+            0x3A => {},
+            0x3B => {},
+            0x3C => {},
+            0x3D => {},
+            0x3E => {},
+            0x3F => {},
+
+            _=> {}
+        }
+
+        self.pc = self.pc.wrapping_add(4);
+    }
+
+    fn j(&mut self) {
+        let target_addr = (self.pc & 0xF0000000) + (self.current_instruction.target() << 2);
+        self.pc = target_addr - 4;
+    }
+
+    fn jal(&mut self) {
+        let target_addr = (self.pc & 0xF0000000) + (self.current_instruction.target() << 2);
+        self.set_register(31, self.pc + 4);
+        self.pc = target_addr - 4;
+    }
+
+    fn beq(&mut self) {
+        if self.registers[self.current_instruction.rs() as usize] == self.registers[self.current_instruction.rt() as usize] {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se as u32) << 2);
+            self.pc = target_addr;
+        }
+    }
+
+    fn bne(&mut self) {
+        if self.registers[self.current_instruction.rs() as usize] != self.registers[self.current_instruction.rt() as usize] {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se << 2) as u32);
+            self.pc = target_addr;
+        }
+    }
+
+    fn bltz(&mut self) {
+        if (self.registers[self.current_instruction.rs() as usize] as i32) < 0 {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se as u32) << 2);
+            self.pc = target_addr;
+        }
+    }
+
+    fn bgez(&mut self) {
+        if self.registers[self.current_instruction.rs() as usize] as i32 >= 0 {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se as u32) << 2);
+            self.pc = target_addr;
+        }
+    }
+
+    fn bgtz(&mut self) {
+        if self.registers[self.current_instruction.rs() as usize] as i32 >= 0 {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se as u32) << 2);
+            self.pc = target_addr;
+        }
+    }
+
+    fn blez(&mut self) {
+        if self.registers[self.current_instruction.rs() as usize] as i32 <= 0 {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se as u32) << 2);
+            self.pc = target_addr;
+        }
+    }
+
+    fn bltzal(&mut self) {
+        if (self.registers[self.current_instruction.rs() as usize] as i32) < 0 {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se as u32) << 2);
+            self.set_register(31, self.pc + 4);
+            self.pc = target_addr;
+        }
+    }
+
+    fn bgezal(&mut self) {
+        if self.registers[self.current_instruction.rs() as usize] as i32 >= 0 {
+            let value_se = self.current_instruction.immediate() as i32;
+            let target_addr = self.pc + ((value_se as u32) << 2);
+            self.set_register(31, self.pc + 4);
+            self.pc = target_addr;
+        }
+    }
+
+    fn addi(&mut self) {
+        panic!("Unimplemented instruction: ADDI");
+    }
+
+    fn addiu(&mut self) {
+        let value = self.current_instruction.immediate() as i16;
+        let result = self.registers[self.current_instruction.rs() as usize].wrapping_add(value as u32);
+        self.set_register(self.current_instruction.rt() as usize, result);
+    }
+
+    fn slti(&mut self) {
+        if (self.registers[self.current_instruction.rs() as usize] as i32) < (self.current_instruction.immediate() as i32) {
+            self.set_register(self.current_instruction.rd() as usize, 1)
+        }
+        else {
+            self.set_register(self.current_instruction.rd() as usize, 0)
+        }
+    }
+
+    fn sltiu(&mut self) {
+        if (self.registers[self.current_instruction.rs() as usize]) < (self.current_instruction.immediate() as u32) {
+            self.set_register(self.current_instruction.rd() as usize, 1)
+        }
+        else {
+            self.set_register(self.current_instruction.rd() as usize, 0)
+        }
+    }
+
+    fn andi(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize] & self.current_instruction.immediate() as u32;
+        self.set_register(self.current_instruction.rt() as usize, result)
+    }
+
+    fn ori(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize] | self.current_instruction.immediate() as u32;
+        self.set_register(self.current_instruction.rt() as usize, result)
+    }
+
+    fn xori(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize] ^ self.current_instruction.immediate() as u32;
+        self.set_register(self.current_instruction.rt() as usize, result)
+    }
+
+    fn lui(&mut self) {
+        let value = (self.current_instruction.immediate() as u32) << 16;
+        self.set_register(self.current_instruction.rt() as usize, value)
+    }
+
+    fn lb(&mut self) {
+        let address = self.current_instruction.immediate() + self.registers[self.current_instruction.rs() as usize];
+        let value = self.memory.read_byte(address) as i8;
+        self.set_register(self.current_instruction.rt() as usize, value as u32);
+    }
+
+    fn lh(&mut self) {
+        let address = self.current_instruction.immediate() + self.registers[self.current_instruction.rs() as usize];
+        let value = self.memory.read_halfword(address) as i16;
+        self.set_register(self.current_instruction.rt() as usize, value as u32);
+    }
+
+    fn lwl(&mut self) {
+        panic!("Unimplemented instruction: LWL");
+    }
+
+    fn lw(&mut self) {
+        let rs = self.current_instruction.rs();
+        let address = self.registers[rs as usize] + self.current_instruction.immediate();
+        let value = self.memory.read_word(address);
+
+        self.set_register(self.current_instruction.rt() as usize, value)
+    }
+
+    fn lbu(&mut self) {
+        let address = self.current_instruction.immediate() + self.registers[self.current_instruction.rs() as usize];
+        let value = self.memory.read_byte(address);
+        self.set_register(self.current_instruction.rt() as usize, value as u32);
+    }
+
+    fn lhu(&mut self) {
+        let address = self.current_instruction.immediate() + self.registers[self.current_instruction.rs() as usize];
+        let value = self.memory.read_halfword(address);
+        self.set_register(self.current_instruction.rt() as usize, value as u32);
+    }
+
+    fn lwr(&mut self) {
+        panic!("Unimplemented instruction: LWR");
+    }
+
+    fn sb(&mut self) {
+        let address = self.registers[self.current_instruction.rs() as usize].wrapping_add((self.current_instruction.immediate() as i32) as u32);
+        self.memory.write_byte(address, (self.registers[self.current_instruction.rt() as usize] & 0xFF) as u8);
+    }
+
+    fn sh(&mut self) {
+        let address = self.registers[self.current_instruction.rs() as usize].wrapping_add((self.current_instruction.immediate() as i32) as u32);
+        self.memory.write_halfword(address, (self.registers[self.current_instruction.rt() as usize] & 0xFFFF) as u16);
+    }
+
+    fn swl(&mut self) {
+        panic!("Unimplemented instruction: SWL");
+    }
+
+    fn sw(&mut self) {
+        let immediate = self.current_instruction.immediate() as i16;
+        let address = self.registers[self.current_instruction.rs() as usize].wrapping_add(immediate as u32);
+        self.memory.write_word(address, self.registers[self.current_instruction.rt() as usize]);
+    }
+
+    fn swr(&mut self) {
+        panic!("Unimplemented instruction: SWR");
+    }
+
+    fn sll(&mut self) {
+        let result = self.registers[self.current_instruction.rt() as usize] << self.current_instruction.shift();
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn srl(&mut self) {
+        let result = self.registers[self.current_instruction.rt() as usize] >> self.current_instruction.shift();
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn sra(&mut self) {
+        panic!("Unimplemented instruction: SRA");
+    }
+
+    fn sllv(&mut self) {
+        let result = self.registers[self.current_instruction.rt() as usize] << (self.registers[self.current_instruction.rs() as usize] & 0x1F);
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn srlv(&mut self) {
+        let result = self.registers[self.current_instruction.rt() as usize] >> (self.registers[self.current_instruction.rs() as usize] & 0x1F);
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn srav(&mut self) {
+        panic!("Unimplemented instruction: SRAV");
+    }
+
+    fn jr(&mut self) {
+        self.pc = self.registers[self.current_instruction.rs() as usize].wrapping_sub(4);
+    }
+
+    fn jalr(&mut self) {
+        self.set_register(self.current_instruction.rd() as usize, self.pc + 4);
+        self.pc = self.registers[self.current_instruction.rs() as usize].wrapping_sub(4);
+    }
+
+    fn syscall(&mut self) {
+        panic!("Unimplemented instruction: SYSCALL");
+    }
+
+    fn break_op(&mut self) {
+        panic!("Unimplemented instruction: BREAK");
+    }
+
+    fn mfhi(&mut self) {
+        panic!("Unimplemented instruction: MFHI");
+    }
+
+    fn mthi(&mut self) {
+        panic!("Unimplemented instruction: MTHI");
+    }
+
+    fn mflo(&mut self) {
+        panic!("Unimplemented instruction: MFLO");
+    }
+
+    fn mtlo(&mut self) {
+        panic!("Unimplemented instruction: MTLO");
+    }
+
+    fn mult(&mut self) {
+        panic!("Unimplemented instruction: MULT");
+    }
+
+    fn multu(&mut self) {
+        panic!("Unimplemented instruction: MULTU");
+    }
+
+    fn div(&mut self) {
+        panic!("Unimplemented instruction: DIV");
+    }
+
+    fn divu(&mut self) {
+        panic!("Unimplemented instruction: DIVU");
+    }
+
+    fn add(&mut self) {
+        panic!("Unimplemented instruction: ADD");
+    }
+
+    fn addu(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize].wrapping_add(self.registers[self.current_instruction.rt() as usize]);
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn sub(&mut self) {
+        panic!("Unimplemented instruction: SUB");
+    }
+
+    fn subu(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize].wrapping_sub(self.registers[self.current_instruction.rt() as usize]);
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn and(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize] & self.registers[self.current_instruction.rt() as usize];
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn or(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize] | self.registers[self.current_instruction.rt() as usize];
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn xor(&mut self) {
+        let result = self.registers[self.current_instruction.rs() as usize] ^ self.registers[self.current_instruction.rt() as usize];
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn nor(&mut self) {
+        let result = 0xFFFFFFFF ^ (self.registers[self.current_instruction.rs() as usize] | self.registers[self.current_instruction.rt() as usize]);
+        self.set_register(self.current_instruction.rd() as usize, result)
+    }
+
+    fn slt(&mut self) {
+        if (self.registers[self.current_instruction.rs() as usize] as i32) < (self.registers[self.current_instruction.rt() as usize] as i32) {
+            self.set_register(self.current_instruction.rd() as usize, 1)
+        }
+        else {
+            self.set_register(self.current_instruction.rd() as usize, 0)
+        }
+    }
+
+    fn sltu(&mut self) {
+        if self.registers[self.current_instruction.rs() as usize] < self.registers[self.current_instruction.rt() as usize] {
+            self.set_register(self.current_instruction.rd() as usize, 1)
+        }
+        else {
+            self.set_register(self.current_instruction.rd() as usize, 0)
+        }
+    }
+
+
+
+    // COP0 Instructions
+
+    fn cop0(&mut self) {
+        match self.current_instruction.rs() {
+            0x00 => self.mfc0(),
+            0x04 => self.mtc0(),
+            _ => panic!("Unimplemented COP0 instruction: {:X}({:b})", self.current_instruction.rs(), self.current_instruction.rs()),
+        }
+    }
+
+    fn mfc0(&mut self) {
+        self.set_register(self.current_instruction.rt() as usize, self.cop0_registers[self.current_instruction.rd() as usize]);
+    }
+
+    fn mtc0(&mut self) {
+        self.cop0_registers[self.current_instruction.rd() as usize] = self.registers[self.current_instruction.rt() as usize];
+    }
+}
