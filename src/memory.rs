@@ -58,14 +58,14 @@ impl CpuMemory {
 
     pub fn read_halfword(&self, address: u32) -> u16 {
         if address % 2 != 0 {
-            panic!("Unaligned memory read at address {:08x}", address);
+            panic!("Unaligned memory read at address {:08X}", address);
         }
         self.read(address) as u16
     }
 
     pub fn read_word(&self, address: u32) -> u32 {
         if address % 4 != 0 {
-            panic!("Unaligned memory read at address {:08x}", address);
+            panic!("Unaligned memory read at address {:08X}", address);
         }
         self.read(address)
     }
@@ -132,7 +132,7 @@ impl CpuMemory {
             LittleEndian::read_u32(&bytes)
         }
         else {
-            println!("Read to unknown location {:08x}", address);
+            println!("Read to unknown location {:08X}", address);
             0
         }
     }
@@ -143,7 +143,7 @@ impl CpuMemory {
 
     pub fn write_halfword(&mut self, address: u32, value: u16) {
         if address % 2 != 0 {
-            panic!("Unaligned memory write at address {:08x}", address);
+            panic!("Unaligned memory write at address {:08X}", address);
         }
         self.write(address, value as u8);
         self.write(address + 1, (value >> 8) as u8);
@@ -151,7 +151,7 @@ impl CpuMemory {
 
     pub fn write_word(&mut self, address: u32, value: u32) {
         if address % 4 != 0 {
-            panic!("Unaligned memory write at address {:08x}", address);
+            panic!("Unaligned memory write at address {:08X}", address);
         }
         self.write(address, value as u8);
         self.write(address + 1, (value >> 8) as u8);

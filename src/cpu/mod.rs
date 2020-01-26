@@ -4,7 +4,14 @@ use std::path::PathBuf;
 
 use super::memory;
 
+#[derive(PartialEq)]
+pub enum CycleResult {
+    Error,
+    Success,
+    Breakpoint,
+}
 
+#[derive(Clone, Copy)]
 pub struct Instruction {
     value: u32
 }
@@ -61,6 +68,9 @@ pub struct Cpu {
 
     pub next_instruction: Instruction,
     pub current_instruction: Instruction,
+
+    pub cpu_paused: bool,
+    pub debugger_breakpoints: Vec<u32>,
 }
 
 impl Cpu {
@@ -70,25 +80,25 @@ impl Cpu {
         let mut bios_file = File::open(PathBuf::from("SCPH1001.bin")).unwrap();
 
         bios_file.read_to_end(&mut bios_data).unwrap();
+
+        let memory = memory::CpuMemory::new(bios_data);
+        let first_op = memory.read_word(0xBFC00000);
         
         Cpu {
-            pc: 0xBFC00000,
+            pc: 0xBFC00004,
             hi: 0,
             lo: 0,
             registers: vec![0; 32],
 
             cop0_registers: vec![0; 16],
 
-            memory: memory::CpuMemory::new(bios_data),
+            memory: memory,
 
-            next_instruction: Instruction::new(0),
+            next_instruction: Instruction::new(first_op),
             current_instruction: Instruction::new(0),
-        }
-    }
 
-    pub fn start_cpu(&mut self) {
-        loop {
-            self.run_instruction();
+            cpu_paused: true,
+            debugger_breakpoints: Vec::new(),
         }
     }
 
@@ -97,12 +107,25 @@ impl Cpu {
         self.registers[0] = 0;
     }
 
-    fn fetch_instruction(&mut self) {
-        self.current_instruction = Instruction::new(self.memory.read_word(self.pc));
-        self.next_instruction = Instruction::new(self.memory.read_word(self.pc + 4));
+    fn take_branch(&mut self) {
+        let immediate = (self.current_instruction.immediate() << 2) as i32;
+        let new_pc = (self.pc + 4) + immediate as u32;
+        self.pc = new_pc;
     }
 
-    fn run_instruction(&mut self) {
+    fn fetch_instruction(&mut self) {
+        self.current_instruction = self.next_instruction;
+        self.next_instruction = Instruction::new(self.memory.read_word(self.pc));
+        self.pc += 4;
+    }
+
+    pub fn run_instruction(&mut self) -> CycleResult {
+
+        for breakpoint in self.debugger_breakpoints.iter() {
+            if self.pc == *breakpoint {
+                return CycleResult::Breakpoint;
+            }
+        }
 
         self.fetch_instruction();
 
@@ -263,7 +286,7 @@ impl Cpu {
             _=> {}
         }
 
-        self.pc = self.pc.wrapping_add(4);
+        CycleResult::Success
     }
 
 
@@ -307,11 +330,11 @@ impl Cpu {
     }
 
     fn lwl(&mut self) {
-        panic!("Unimplemented instruction: LWL");
+        panic!("Unimplemented instruction: LWL at PC {:08X}", self.pc);
     }
 
     fn lwr(&mut self) {
-        panic!("Unimplemented instruction: LWR");
+        panic!("Unimplemented instruction: LWR at PC {:08X}", self.pc);
     }
 
     fn sb(&mut self) {
@@ -336,11 +359,11 @@ impl Cpu {
     }
 
     fn swl(&mut self) {
-        panic!("Unimplemented instruction: SWL");
+        panic!("Unimplemented instruction: SWL at PC {:08X}", self.pc);
     }
 
     fn swr(&mut self) {
-        panic!("Unimplemented instruction: SWR");
+        panic!("Unimplemented instruction: SWR at PC {:08X}", self.pc);
     }
 
 
@@ -348,7 +371,14 @@ impl Cpu {
     // ALU instructions
 
     fn addi(&mut self) {
-        panic!("Unimplemented instruction: ADDI");
+        let value = self.current_instruction.immediate() as i32;
+        let result = self.registers[self.current_instruction.rs() as usize].overflowing_add(value as u32);
+
+        if result.1 {
+            panic!("ADDI overflowed and traps are not implemented!");
+        }
+
+        self.set_register(self.current_instruction.rt() as usize, result.0);
     }
 
     fn addiu(&mut self) {
@@ -397,7 +427,14 @@ impl Cpu {
 
 
     fn add(&mut self) {
-        panic!("Unimplemented instruction: ADD");
+        let value = self.registers[self.current_instruction.rt() as usize];
+        let result = self.registers[self.current_instruction.rs() as usize].overflowing_add(value);
+
+        if result.1 {
+            panic!("ADD overflowed and traps are not implemented!");
+        }
+
+        self.set_register(self.current_instruction.rd() as usize, result.0);
     }
 
     fn addu(&mut self) {
@@ -406,7 +443,14 @@ impl Cpu {
     }
 
     fn sub(&mut self) {
-        panic!("Unimplemented instruction: SUB");
+        let value = self.registers[self.current_instruction.rt() as usize];
+        let result = self.registers[self.current_instruction.rs() as usize].overflowing_sub(value);
+
+        if result.1 {
+            panic!("SUB overflowed and traps are not implemented!");
+        }
+
+        self.set_register(self.current_instruction.rd() as usize, result.0);
     }
 
     fn subu(&mut self) {
@@ -448,10 +492,9 @@ impl Cpu {
     }
 
     fn nor(&mut self) {
-        let result = 0xFFFFFFFF ^ (self.registers[self.current_instruction.rs() as usize] | self.registers[self.current_instruction.rt() as usize]);
-        self.set_register(self.current_instruction.rd() as usize, result)
+        panic!("Unimplemented instruction: NOR at PC {:08X}", self.pc);
     }
-    
+
 
     fn sll(&mut self) {
         let result = self.registers[self.current_instruction.rt() as usize] << self.current_instruction.shift();
@@ -464,7 +507,7 @@ impl Cpu {
     }
 
     fn sra(&mut self) {
-        panic!("Unimplemented instruction: SRA");
+        panic!("Unimplemented instruction: SRA at PC {:08X}", self.pc);
     }
 
     fn sllv(&mut self) {
@@ -478,40 +521,40 @@ impl Cpu {
     }
 
     fn srav(&mut self) {
-        panic!("Unimplemented instruction: SRAV");
+        panic!("Unimplemented instruction: SRAV at PC {:08X}", self.pc);
     }
 
 
     fn mult(&mut self) {
-        panic!("Unimplemented instruction: MULT");
+        panic!("Unimplemented instruction: MULT at PC {:08X}", self.pc);
     }
 
     fn multu(&mut self) {
-        panic!("Unimplemented instruction: MULTU");
+        panic!("Unimplemented instruction: MULTU at PC {:08X}", self.pc);
     }
 
     fn div(&mut self) {
-        panic!("Unimplemented instruction: DIV");
+        panic!("Unimplemented instruction: DIV at PC {:08X}", self.pc);
     }
 
     fn divu(&mut self) {
-        panic!("Unimplemented instruction: DIVU");
+        panic!("Unimplemented instruction: DIVU at PC {:08X}", self.pc);
     }
 
     fn mfhi(&mut self) {
-        panic!("Unimplemented instruction: MFHI");
+        panic!("Unimplemented instruction: MFHI at PC {:08X}", self.pc);
     }
 
     fn mflo(&mut self) {
-        panic!("Unimplemented instruction: MFLO");
+        panic!("Unimplemented instruction: MFLO at PC {:08X}", self.pc);
     }
 
     fn mthi(&mut self) {
-        panic!("Unimplemented instruction: MTHI");
+        panic!("Unimplemented instruction: MTHI at PC {:08X}", self.pc);
     }
 
     fn mtlo(&mut self) {
-        panic!("Unimplemented instruction: MTLO");
+        panic!("Unimplemented instruction: MTLO at PC {:08X}", self.pc);
     }
 
 
@@ -530,78 +573,60 @@ impl Cpu {
     }
 
     fn jr(&mut self) {
-        self.pc = self.registers[self.current_instruction.rs() as usize].wrapping_sub(4);
+        self.pc = self.registers[self.current_instruction.rs() as usize];
     }
 
     fn jalr(&mut self) {
         self.set_register(self.current_instruction.rd() as usize, self.pc + 4);
-        self.pc = self.registers[self.current_instruction.rs() as usize].wrapping_sub(4);
+        self.pc = self.registers[self.current_instruction.rs() as usize];
     }
 
 
     fn beq(&mut self) {
         if self.registers[self.current_instruction.rs() as usize] == self.registers[self.current_instruction.rt() as usize] {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se as u32) << 2);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
     fn bne(&mut self) {
         if self.registers[self.current_instruction.rs() as usize] != self.registers[self.current_instruction.rt() as usize] {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se << 2) as u32);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
     fn blez(&mut self) {
         if self.registers[self.current_instruction.rs() as usize] as i32 <= 0 {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se as u32) << 2);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
     fn bgtz(&mut self) {
         if self.registers[self.current_instruction.rs() as usize] as i32 >= 0 {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se as u32) << 2);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
     fn bltz(&mut self) {
         if (self.registers[self.current_instruction.rs() as usize] as i32) < 0 {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se as u32) << 2);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
     fn bgez(&mut self) {
         if self.registers[self.current_instruction.rs() as usize] as i32 >= 0 {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se as u32) << 2);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
     fn bltzal(&mut self) {
         if (self.registers[self.current_instruction.rs() as usize] as i32) < 0 {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se as u32) << 2);
-            self.set_register(31, self.pc + 4);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
     fn bgezal(&mut self) {
         if self.registers[self.current_instruction.rs() as usize] as i32 >= 0 {
-            let value_se = self.current_instruction.immediate() as i32;
-            let target_addr = self.pc + ((value_se as u32) << 2);
-            self.set_register(31, self.pc + 4);
-            self.pc = target_addr;
+            self.take_branch();
         }
     }
 
@@ -610,11 +635,11 @@ impl Cpu {
     // Special instructions
 
     fn syscall(&mut self) {
-        panic!("Unimplemented instruction: SYSCALL");
+        panic!("Unimplemented instruction: SYSCALL at PC {:08X}", self.pc);
     }
 
     fn break_op(&mut self) {
-        panic!("Unimplemented instruction: BREAK");
+        panic!("Unimplemented instruction: BREAK at PC {:08X}", self.pc);
     }
 
 
