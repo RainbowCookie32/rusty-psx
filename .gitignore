@@ -1,6 +1,7 @@
 /.vscode
 /target
 **/*.rs.bk
+Cargo.lock
 
 # ROM files and PSX executables.
 *.bin
