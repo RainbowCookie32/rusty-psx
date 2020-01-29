@@ -103,13 +103,10 @@ fn main() {
         debug_labels_boxes[0].append(&ui, label, LayoutStrategy::Compact);
     }
 
-    for index in 17..32 {
+    for index in 16..32 {
         let label = debug_labels[index].clone();
         debug_labels_boxes[1].append(&ui, label, LayoutStrategy::Compact);
     }
-    
-    debug_labels_boxes[1].append(&ui, debug_hi.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_lo.clone(), LayoutStrategy::Compact);
 
     debug_registers_box.append(&ui, debug_labels_boxes[0].clone(), LayoutStrategy::Compact);
     debug_registers_box.append(&ui, debug_spacer, LayoutStrategy::Stretchy);
@@ -120,6 +117,8 @@ fn main() {
     debug_main_box.append(&ui, debug_controls_group, LayoutStrategy::Compact);
     debug_main_box.append(&ui, debug_registers_group, LayoutStrategy::Compact);
     debug_main_box.append(&ui, debug_pc.clone(), LayoutStrategy::Compact);
+    debug_main_box.append(&ui, debug_hi.clone(), LayoutStrategy::Compact);
+    debug_main_box.append(&ui, debug_lo.clone(), LayoutStrategy::Compact);
     debug_main_box.append(&ui, debug_current_inst.clone(), LayoutStrategy::Stretchy);
     debug_main_box.append(&ui, debug_next_inst.clone(), LayoutStrategy::Stretchy);
 
