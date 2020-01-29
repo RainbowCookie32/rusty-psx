@@ -108,23 +108,17 @@ impl Cpu {
     }
 
     fn take_branch(&mut self) {
-        let immediate = (self.current_instruction.immediate() << 2) as i32;
-        let new_pc = (self.pc + 4) + immediate as u32;
+        let immediate = (self.current_instruction.immediate() << 2) as i16;
+        let new_pc = (self.pc + 4).wrapping_add(immediate as u32);
         self.pc = new_pc;
     }
 
     fn fetch_instruction(&mut self) {
         self.current_instruction = self.next_instruction;
-        self.next_instruction = Instruction::new(self.memory.read_word(self.pc + 4));
+        self.next_instruction = Instruction::new(self.memory.read_word(self.pc.wrapping_add(4)));
     }
 
     pub fn run_instruction(&mut self) -> CycleResult {
-
-        for breakpoint in self.debugger_breakpoints.iter() {
-            if self.pc == *breakpoint {
-                return CycleResult::Breakpoint;
-            }
-        }
 
         self.fetch_instruction();
 
@@ -285,7 +279,14 @@ impl Cpu {
             _=> {}
         }
 
-        self.pc += 4;
+        self.pc = self.pc.wrapping_add(4);
+
+        for breakpoint in self.debugger_breakpoints.iter() {
+            if self.pc == *breakpoint {
+                return CycleResult::Breakpoint;
+            }
+        }
+
         CycleResult::Success
     }
 
@@ -563,22 +564,26 @@ impl Cpu {
 
     fn j(&mut self) {
         let target_addr = (self.pc & 0xF0000000) + (self.current_instruction.target() << 2);
-        self.pc = target_addr - 4;
+        // PC gets incremented after running this instruction, then the instruction on the branch delay is loaded
+        // and the next instruction is prefetched with from PC + 4. Substracting 8 makes sure the instruction
+        // that's loaded in the delay slot is the correct one.
+        self.pc = target_addr.wrapping_sub(8);
     }
 
     fn jal(&mut self) {
         let target_addr = (self.pc & 0xF0000000) + (self.current_instruction.target() << 2);
-        self.set_register(31, self.pc + 4);
-        self.pc = target_addr - 4;
+        self.set_register(31, self.pc + 8);
+        // See comment in j().
+        self.pc = target_addr.wrapping_sub(8);
     }
 
     fn jr(&mut self) {
-        self.pc = self.registers[self.current_instruction.rs() as usize];
+        self.pc = self.registers[self.current_instruction.rs() as usize].wrapping_sub(8);
     }
 
     fn jalr(&mut self) {
-        self.set_register(self.current_instruction.rd() as usize, self.pc + 4);
-        self.pc = self.registers[self.current_instruction.rs() as usize];
+        self.set_register(self.current_instruction.rd() as usize, self.pc + 8);
+        self.pc = self.registers[self.current_instruction.rs() as usize].wrapping_sub(8);
     }
 
 
@@ -619,12 +624,16 @@ impl Cpu {
     }
 
     fn bltzal(&mut self) {
+        // Place the address after the delay slot on the link register.
+        self.registers[31] = self.pc + 8;
         if (self.registers[self.current_instruction.rs() as usize] as i32) < 0 {
             self.take_branch();
         }
     }
 
     fn bgezal(&mut self) {
+        // Place the address after the delay slot on the link register.
+        self.registers[31] = self.pc + 8;
         if self.registers[self.current_instruction.rs() as usize] as i32 >= 0 {
             self.take_branch();
         }
