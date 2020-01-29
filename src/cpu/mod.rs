@@ -85,7 +85,7 @@ impl Cpu {
         let first_op = memory.read_word(0xBFC00000);
         
         Cpu {
-            pc: 0xBFC00004,
+            pc: 0xBFC00000,
             hi: 0,
             lo: 0,
             registers: vec![0; 32],
@@ -115,8 +115,7 @@ impl Cpu {
 
     fn fetch_instruction(&mut self) {
         self.current_instruction = self.next_instruction;
-        self.next_instruction = Instruction::new(self.memory.read_word(self.pc));
-        self.pc += 4;
+        self.next_instruction = Instruction::new(self.memory.read_word(self.pc + 4));
     }
 
     pub fn run_instruction(&mut self) -> CycleResult {
@@ -286,6 +285,7 @@ impl Cpu {
             _=> {}
         }
 
+        self.pc += 4;
         CycleResult::Success
     }
 
