@@ -64,41 +64,25 @@ fn main() {
     let mut debug_breakpoint_entry = Entry::new(&ui);
     let mut debug_set_breakpoint = Button::new(&ui, "Set Breakpoint");
     let mut debug_status_label = Label::new(&ui, "Waiting...");
-    
 
     // Registers labels
-    let mut debug_r0 = Label::new(&ui, &String::from(format!("r0: {:08X}", 0)));
-    let mut debug_r1 = Label::new(&ui, &String::from(format!("r1: {:08X}", 0)));
-    let mut debug_r2 = Label::new(&ui, &String::from(format!("r2: {:08X}", 0)));
-    let mut debug_r3 = Label::new(&ui, &String::from(format!("r3: {:08X}", 0)));
-    let mut debug_r4 = Label::new(&ui, &String::from(format!("r4: {:08X}", 0)));
-    let mut debug_r5 = Label::new(&ui, &String::from(format!("r5: {:08X}", 0)));
-    let mut debug_r6 = Label::new(&ui, &String::from(format!("r6: {:08X}", 0)));
-    let mut debug_r7 = Label::new(&ui, &String::from(format!("r7: {:08X}", 0)));
-    let mut debug_r8 = Label::new(&ui, &String::from(format!("r8: {:08X}", 0)));
-    let mut debug_r9 = Label::new(&ui, &String::from(format!("r9: {:08X}", 0)));
-    let mut debug_r10 = Label::new(&ui, &String::from(format!("r10: {:08X}", 0)));
-    let mut debug_r11 = Label::new(&ui, &String::from(format!("r11: {:08X}", 0)));
-    let mut debug_r12 = Label::new(&ui, &String::from(format!("r12: {:08X}", 0)));
-    let mut debug_r13 = Label::new(&ui, &String::from(format!("r13: {:08X}", 0)));
-    let mut debug_r14 = Label::new(&ui, &String::from(format!("r14: {:08X}", 0)));
-    let mut debug_r15 = Label::new(&ui, &String::from(format!("r15: {:08X}", 0)));
-    let mut debug_r16 = Label::new(&ui, &String::from(format!("r16: {:08X}", 0)));
-    let mut debug_r17 = Label::new(&ui, &String::from(format!("r17: {:08X}", 0)));
-    let mut debug_r18 = Label::new(&ui, &String::from(format!("r18: {:08X}", 0)));
-    let mut debug_r19 = Label::new(&ui, &String::from(format!("r19: {:08X}", 0)));
-    let mut debug_r20 = Label::new(&ui, &String::from(format!("r20: {:08X}", 0)));
-    let mut debug_r21 = Label::new(&ui, &String::from(format!("r21: {:08X}", 0)));
-    let mut debug_r22 = Label::new(&ui, &String::from(format!("r22: {:08X}", 0)));
-    let mut debug_r23 = Label::new(&ui, &String::from(format!("r23: {:08X}", 0)));
-    let mut debug_r24 = Label::new(&ui, &String::from(format!("r24: {:08X}", 0)));
-    let mut debug_r25 = Label::new(&ui, &String::from(format!("r25: {:08X}", 0)));
-    let mut debug_r26 = Label::new(&ui, &String::from(format!("r26: {:08X}", 0)));
-    let mut debug_r27 = Label::new(&ui, &String::from(format!("r27: {:08X}", 0)));
-    let mut debug_r28 = Label::new(&ui, &String::from(format!("r28: {:08X}", 0)));
-    let mut debug_r29 = Label::new(&ui, &String::from(format!("r29: {:08X}", 0)));
-    let mut debug_r30 = Label::new(&ui, &String::from(format!("r30: {:08X}", 0)));
-    let mut debug_r31 = Label::new(&ui, &String::from(format!("r31: {:08X}", 0)));
+    let mut debug_labels = vec![
+    Label::new(&ui, &String::from(format!("r0: {:08X}", 0))), Label::new(&ui, &String::from(format!("r1: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r2: {:08X}", 0))), Label::new(&ui, &String::from(format!("r3: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r4: {:08X}", 0))), Label::new(&ui, &String::from(format!("r5: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r6: {:08X}", 0))), Label::new(&ui, &String::from(format!("r7: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r8: {:08X}", 0))), Label::new(&ui, &String::from(format!("r9: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r10: {:08X}", 0))), Label::new(&ui, &String::from(format!("r11: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r12: {:08X}", 0))), Label::new(&ui, &String::from(format!("r13: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r14: {:08X}", 0))), Label::new(&ui, &String::from(format!("r15: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r16: {:08X}", 0))), Label::new(&ui, &String::from(format!("r17: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r18: {:08X}", 0))), Label::new(&ui, &String::from(format!("r19: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r20: {:08X}", 0))), Label::new(&ui, &String::from(format!("r21: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r22: {:08X}", 0))), Label::new(&ui, &String::from(format!("r23: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r24: {:08X}", 0))), Label::new(&ui, &String::from(format!("r25: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r26: {:08X}", 0))), Label::new(&ui, &String::from(format!("r27: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r28: {:08X}", 0))), Label::new(&ui, &String::from(format!("r29: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r30: {:08X}", 0))), Label::new(&ui, &String::from(format!("r31: {:08X}", 0)))];
 
     let mut debug_hi = Label::new(&ui, &String::from(format!("hi: {:08X}", 0)));
     let mut debug_lo = Label::new(&ui, &String::from(format!("lo: {:08X}", 0)));
@@ -113,40 +97,17 @@ fn main() {
     debug_controls_box.append(&ui, debug_breakpoint_entry.clone(), LayoutStrategy::Compact);
     debug_controls_box.append(&ui, debug_set_breakpoint.clone(), LayoutStrategy::Compact);
     debug_controls_box.append(&ui, debug_status_label.clone(), LayoutStrategy::Compact);
-    
-    debug_labels_boxes[0].append(&ui, debug_r0.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r1.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r2.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r3.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r4.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r5.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r6.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r7.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r8.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r9.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r10.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r11.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r12.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r13.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r14.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r15.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[0].append(&ui, debug_r16.clone(), LayoutStrategy::Compact);
 
-    debug_labels_boxes[1].append(&ui, debug_r17.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r18.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r19.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r20.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r21.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r22.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r23.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r24.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r25.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r26.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r27.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r28.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r29.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r30.clone(), LayoutStrategy::Compact);
-    debug_labels_boxes[1].append(&ui, debug_r31.clone(), LayoutStrategy::Compact);
+    for index in 0..16 {
+        let label = debug_labels[index].clone();
+        debug_labels_boxes[0].append(&ui, label, LayoutStrategy::Compact);
+    }
+
+    for index in 17..32 {
+        let label = debug_labels[index].clone();
+        debug_labels_boxes[1].append(&ui, label, LayoutStrategy::Compact);
+    }
+    
     debug_labels_boxes[1].append(&ui, debug_hi.clone(), LayoutStrategy::Compact);
     debug_labels_boxes[1].append(&ui, debug_lo.clone(), LayoutStrategy::Compact);
 
@@ -215,8 +176,70 @@ fn main() {
 
     debug_cpu_pause.on_clicked(&ui, {
         |_| {
+            let mut ui = ui.clone();
             cpu.cpu_paused = true;
             debug_mode = true;
+            ui.set_enabled(debug_cpu_step.clone(), true);
+            for index in 0..32 {
+                let value = cpu.registers[index];
+                debug_labels[index].set_text(&ui, format!("r{}: {:08X}", index, value).as_str());
+            }
+
+            debug_hi.set_text(&ui, format!("hi: {:08X}", cpu.hi).as_str());
+            debug_lo.set_text(&ui, format!("lo: {:08X}", cpu.lo).as_str());
+            debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc).as_str());
+
+            if cpu.current_instruction.op() != 0 {
+                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                    primary_table.get(&cpu.current_instruction.op()).unwrap(),
+                    cpu.current_instruction.rs(),
+                    cpu.current_instruction.rd(),
+                    cpu.current_instruction.rt(),
+                    cpu.current_instruction.shift(),
+                    cpu.current_instruction.immediate(),
+                    cpu.current_instruction.target(),
+                );
+
+                debug_current_inst.set_text(&ui, label.as_str());
+            }
+            else {
+                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                    secondary_table.get(&cpu.current_instruction.op()).unwrap(),
+                    cpu.current_instruction.rs(),
+                    cpu.current_instruction.rd(),
+                    cpu.current_instruction.rt(),
+                    cpu.current_instruction.shift(),
+                    cpu.current_instruction.immediate(),
+                    cpu.current_instruction.target(),
+                    );
+
+                    debug_current_inst.set_text(&ui, label.as_str());
+                }
+
+                if cpu.next_instruction.op() != 0 {
+                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                        primary_table.get(&cpu.next_instruction.op()).unwrap(),
+                        cpu.next_instruction.rs(),
+                        cpu.next_instruction.rd(),
+                        cpu.next_instruction.rt(),
+                        cpu.next_instruction.shift(),
+                        cpu.next_instruction.immediate(),
+                        cpu.next_instruction.target(),
+                    );
+                    debug_next_inst.set_text(&ui, label.as_str());
+                }
+                else {
+                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                        secondary_table.get(&cpu.next_instruction.op()).unwrap(),
+                        cpu.next_instruction.rs(),
+                        cpu.next_instruction.rd(),
+                        cpu.next_instruction.rt(),
+                        cpu.next_instruction.shift(),
+                        cpu.next_instruction.immediate(),
+                        cpu.next_instruction.target(),
+                    );
+                    debug_next_inst.set_text(&ui, label.as_str());
+                }
         }
     });
 
@@ -287,39 +310,11 @@ fn main() {
             if debug_mode {
                 cpu.cpu_paused = true;
                 ui.set_enabled(debug_cpu_step.clone(), true);
-    
-                debug_r0.set_text(&ui, format!("r0: {:08X}", cpu.registers[0]).as_str());
-                debug_r1.set_text(&ui, format!("r1: {:08X}", cpu.registers[1]).as_str());
-                debug_r2.set_text(&ui, format!("r2: {:08X}", cpu.registers[2]).as_str());
-                debug_r3.set_text(&ui, format!("r3: {:08X}", cpu.registers[3]).as_str());
-                debug_r4.set_text(&ui, format!("r4: {:08X}", cpu.registers[4]).as_str());
-                debug_r5.set_text(&ui, format!("r5: {:08X}", cpu.registers[5]).as_str());
-                debug_r6.set_text(&ui, format!("r6: {:08X}", cpu.registers[6]).as_str());
-                debug_r7.set_text(&ui, format!("r7: {:08X}", cpu.registers[7]).as_str());
-                debug_r8.set_text(&ui, format!("r8: {:08X}", cpu.registers[8]).as_str());
-                debug_r9.set_text(&ui, format!("r9: {:08X}", cpu.registers[9]).as_str());
-                debug_r10.set_text(&ui, format!("r10: {:08X}", cpu.registers[10]).as_str());
-                debug_r11.set_text(&ui, format!("r11: {:08X}", cpu.registers[11]).as_str());
-                debug_r12.set_text(&ui, format!("r12: {:08X}", cpu.registers[12]).as_str());
-                debug_r13.set_text(&ui, format!("r13: {:08X}", cpu.registers[13]).as_str());
-                debug_r14.set_text(&ui, format!("r14: {:08X}", cpu.registers[14]).as_str());
-                debug_r15.set_text(&ui, format!("r15: {:08X}", cpu.registers[15]).as_str());
-                debug_r16.set_text(&ui, format!("r16: {:08X}", cpu.registers[16]).as_str());
-                debug_r17.set_text(&ui, format!("r17: {:08X}", cpu.registers[17]).as_str());
-                debug_r18.set_text(&ui, format!("r18: {:08X}", cpu.registers[18]).as_str());
-                debug_r19.set_text(&ui, format!("r19: {:08X}", cpu.registers[19]).as_str());
-                debug_r20.set_text(&ui, format!("r20: {:08X}", cpu.registers[20]).as_str());
-                debug_r21.set_text(&ui, format!("r21: {:08X}", cpu.registers[21]).as_str());
-                debug_r22.set_text(&ui, format!("r22: {:08X}", cpu.registers[22]).as_str());
-                debug_r23.set_text(&ui, format!("r23: {:08X}", cpu.registers[23]).as_str());
-                debug_r24.set_text(&ui, format!("r24: {:08X}", cpu.registers[24]).as_str());
-                debug_r25.set_text(&ui, format!("r25: {:08X}", cpu.registers[25]).as_str());
-                debug_r26.set_text(&ui, format!("r26: {:08X}", cpu.registers[26]).as_str());
-                debug_r27.set_text(&ui, format!("r27: {:08X}", cpu.registers[27]).as_str());
-                debug_r28.set_text(&ui, format!("r28: {:08X}", cpu.registers[28]).as_str());
-                debug_r29.set_text(&ui, format!("r29: {:08X}", cpu.registers[29]).as_str());
-                debug_r30.set_text(&ui, format!("r30: {:08X}", cpu.registers[30]).as_str());
-                debug_r31.set_text(&ui, format!("r31: {:08X}", cpu.registers[31]).as_str());
+
+                for index in 0..32 {
+                    let value = cpu.registers[index];
+                    debug_labels[index].set_text(&ui, format!("r{}: {:08X}", index, value).as_str());
+                }
     
                 debug_hi.set_text(&ui, format!("hi: {:08X}", cpu.hi).as_str());
                 debug_lo.set_text(&ui, format!("lo: {:08X}", cpu.lo).as_str());
