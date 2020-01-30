@@ -134,7 +134,7 @@ fn main() {
     let mut should_run = true;
     let mut debug_mode = true;
     let mut cpu = cpu::Cpu::new();
-    let mut last_cycle: CycleResult;
+    let mut last_cycle = CycleResult::Success;
     let mut can_set_breakpoint = false;
     let mut breakpoint_addr = String::new();
 
@@ -282,7 +282,7 @@ fn main() {
             ui.set_enabled(debug_set_breakpoint.clone(), false);
         }
 
-        if !cpu.cpu_paused {
+        if !cpu.cpu_paused && last_cycle != CycleResult::Error {
             ui.set_enabled(emu_start_button.clone(), false);
             ui.set_enabled(debug_start_debug.clone(), false);
             ui.set_enabled(emu_pause_button.clone(), true);

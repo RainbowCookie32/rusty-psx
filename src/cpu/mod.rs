@@ -72,6 +72,7 @@ pub struct Cpu {
     pub branch_delay: bool,
 
     pub cpu_paused: bool,
+    pub cpu_result: CycleResult,
     pub debugger_breakpoints: Vec<u32>,
 }
 
@@ -102,6 +103,7 @@ impl Cpu {
             branch_delay: false,
 
             cpu_paused: true,
+            cpu_result: CycleResult::Success,
             debugger_breakpoints: Vec::new(),
         }
     }
@@ -297,7 +299,12 @@ impl Cpu {
             }
         }
 
-        CycleResult::Success
+        if self.cpu_result == CycleResult::Error {
+            CycleResult::Error
+        }
+        else {
+            CycleResult::Success
+        }
     }
 
 
@@ -341,11 +348,13 @@ impl Cpu {
     }
 
     fn lwl(&mut self) {
-        panic!("Unimplemented instruction: LWL at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: LWL at PC {:08X}", self.pc);
     }
 
     fn lwr(&mut self) {
-        panic!("Unimplemented instruction: LWR at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: LWR at PC {:08X}", self.pc);
     }
 
     fn sb(&mut self) {
@@ -370,11 +379,13 @@ impl Cpu {
     }
 
     fn swl(&mut self) {
-        panic!("Unimplemented instruction: SWL at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: SWL at PC {:08X}", self.pc);
     }
 
     fn swr(&mut self) {
-        panic!("Unimplemented instruction: SWR at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: SWR at PC {:08X}", self.pc);
     }
 
 
@@ -386,7 +397,8 @@ impl Cpu {
         let result = self.registers[self.current_instruction.rs() as usize].overflowing_add(value as u32);
 
         if result.1 {
-            panic!("ADDI overflowed and traps are not implemented!");
+            self.cpu_result = CycleResult::Error;
+            println!("ADDI overflowed and traps are not implemented!");
         }
 
         self.set_register(self.current_instruction.rt() as usize, result.0);
@@ -442,7 +454,8 @@ impl Cpu {
         let result = self.registers[self.current_instruction.rs() as usize].overflowing_add(value);
 
         if result.1 {
-            panic!("ADD overflowed and traps are not implemented!");
+            self.cpu_result = CycleResult::Error;
+            println!("ADD overflowed and traps are not implemented!");
         }
 
         self.set_register(self.current_instruction.rd() as usize, result.0);
@@ -458,7 +471,8 @@ impl Cpu {
         let result = self.registers[self.current_instruction.rs() as usize].overflowing_sub(value);
 
         if result.1 {
-            panic!("SUB overflowed and traps are not implemented!");
+            self.cpu_result = CycleResult::Error;
+            println!("SUB overflowed and traps are not implemented!");
         }
 
         self.set_register(self.current_instruction.rd() as usize, result.0);
@@ -503,7 +517,8 @@ impl Cpu {
     }
 
     fn nor(&mut self) {
-        panic!("Unimplemented instruction: NOR at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: NOR at PC {:08X}", self.pc);
     }
 
 
@@ -518,7 +533,8 @@ impl Cpu {
     }
 
     fn sra(&mut self) {
-        panic!("Unimplemented instruction: SRA at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: SRA at PC {:08X}", self.pc);
     }
 
     fn sllv(&mut self) {
@@ -532,40 +548,49 @@ impl Cpu {
     }
 
     fn srav(&mut self) {
-        panic!("Unimplemented instruction: SRAV at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: SRAV at PC {:08X}", self.pc);
     }
 
 
     fn mult(&mut self) {
-        panic!("Unimplemented instruction: MULT at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: MULT at PC {:08X}", self.pc);
     }
 
     fn multu(&mut self) {
-        panic!("Unimplemented instruction: MULTU at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: MULTU at PC {:08X}", self.pc);
     }
 
     fn div(&mut self) {
-        panic!("Unimplemented instruction: DIV at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: DIV at PC {:08X}", self.pc);
     }
 
     fn divu(&mut self) {
-        panic!("Unimplemented instruction: DIVU at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: DIVU at PC {:08X}", self.pc);
     }
 
     fn mfhi(&mut self) {
-        panic!("Unimplemented instruction: MFHI at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: MFHI at PC {:08X}", self.pc);
     }
 
     fn mflo(&mut self) {
-        panic!("Unimplemented instruction: MFLO at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: MFLO at PC {:08X}", self.pc);
     }
 
     fn mthi(&mut self) {
-        panic!("Unimplemented instruction: MTHI at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: MTHI at PC {:08X}", self.pc);
     }
 
     fn mtlo(&mut self) {
-        panic!("Unimplemented instruction: MTLO at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: MTLO at PC {:08X}", self.pc);
     }
 
 
@@ -654,11 +679,13 @@ impl Cpu {
     // Special instructions
 
     fn syscall(&mut self) {
-        panic!("Unimplemented instruction: SYSCALL at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: SYSCALL at PC {:08X}", self.pc);
     }
 
     fn break_op(&mut self) {
-        panic!("Unimplemented instruction: BREAK at PC {:08X}", self.pc);
+        self.cpu_result = CycleResult::Error;
+        println!("Unimplemented instruction: BREAK at PC {:08X}", self.pc);
     }
 
 
@@ -669,7 +696,10 @@ impl Cpu {
         match self.current_instruction.rs() {
             0x00 => self.mfc0(),
             0x04 => self.mtc0(),
-            _ => panic!("Unimplemented COP0 instruction: {:X}({:b})", self.current_instruction.rs(), self.current_instruction.rs()),
+            _ => {
+                self.cpu_result = CycleResult::Error;
+                println!("Unimplemented COP0 instruction: {:X}({:b})", self.current_instruction.rs(), self.current_instruction.rs());
+            },
         }
     }
 
