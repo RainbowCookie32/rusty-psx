@@ -295,7 +295,10 @@ fn main() {
                 // instruction being executed. Substract 4 so it's accurate to the current CPU status.
                 debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc - 4).as_str());
 
-                if cpu.current_instruction.op() != 0 {
+                if cpu.current_instruction.op() == 0 && cpu.current_instruction.function() == 0 {
+                    debug_current_inst.set_text(&ui, "Instruction: NOP");
+                }
+                else if cpu.current_instruction.op() != 0 {
                     let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
                         primary_table.get(&cpu.current_instruction.op()).unwrap(),
                         cpu.current_instruction.rs(),
@@ -307,7 +310,7 @@ fn main() {
                 }
                 else {
                     let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
-                        secondary_table.get(&cpu.current_instruction.op()).unwrap(),
+                        secondary_table.get(&cpu.current_instruction.function()).unwrap(),
                         cpu.current_instruction.rs(),
                         cpu.current_instruction.rd(),
                         cpu.current_instruction.rt(),
