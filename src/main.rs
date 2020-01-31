@@ -3,7 +3,7 @@ use std::path::{PathBuf};
 use cpu::CycleResult;
 
 use iui::prelude::*;
-use iui::controls::{Button, Entry, Group, Label, Spacer, TabGroup, HorizontalBox, VerticalBox};
+use iui::controls::{Button, Entry, Group, GridAlignment, GridExpand, Label, LayoutGrid, Spacer, TabGroup, HorizontalBox, VerticalBox};
 
 mod cpu;
 mod memory;
@@ -18,43 +18,46 @@ fn main() {
 
     let mut tab_control = TabGroup::new(&ui);
 
+    let mut emu_tab_box = VerticalBox::new(&ui);
+    
+    let mut bios_path = PathBuf::new();
+    let mut bios_label_text = String::new();
     let mut bios_box = VerticalBox::new(&ui);
     let mut bios_group = Group::new(&ui, "BIOS\n");
     let mut bios_label = Label::new(&ui, &String::from("BIOS not loaded\n"));
-    let mut bios_path = PathBuf::new();
-    let mut bios_label_text = String::new();
     let mut bios_button = Button::new(&ui, "Load BIOS");
+
+    let mut emu_box = VerticalBox::new(&ui);
+    let mut emu_group = Group::new(&ui, "Emulation\n");
+    let mut emu_start_button = Button::new(&ui, "Start Emulation");
+    let mut emu_pause_button = Button::new(&ui, "Pause");
+    let mut emu_reset_button = Button::new(&ui, "Reset");
 
     bios_box.set_padded(&ui, true);
     bios_box.append(&ui, bios_label.clone(), LayoutStrategy::Compact);
     bios_box.append(&ui, bios_button.clone(), LayoutStrategy::Compact);
     bios_group.set_child(&ui, bios_box);
     bios_group.set_margined(&ui, true);
-    tab_control.append(&ui, "BIOS", bios_group);
-
-
-    let mut emu_box = VerticalBox::new(&ui);
-    let mut emu_group = Group::new(&ui, "Emulation\n");
-    let mut emu_start_button = Button::new(&ui, "Start Emulation");
-    let mut emu_pause_button = Button::new(&ui, "Pause");
 
     emu_box.set_padded(&ui, true);
     emu_box.append(&ui, emu_start_button.clone(), LayoutStrategy::Compact);
     emu_box.append(&ui, emu_pause_button.clone(), LayoutStrategy::Compact);
+    emu_box.append(&ui, emu_reset_button.clone(), LayoutStrategy::Compact);
     emu_group.set_child(&ui, emu_box);
     emu_group.set_margined(&ui, true);
-    tab_control.append(&ui, "Emulation", emu_group);
+
+    emu_tab_box.append(&ui, bios_group, LayoutStrategy::Compact);
+    emu_tab_box.append(&ui, emu_group, LayoutStrategy::Compact);
+    tab_control.append(&ui, "General", emu_tab_box);
 
     
     let mut debug_main_box = VerticalBox::new(&ui);
     let mut debug_controls_box = VerticalBox::new(&ui);
     let mut debug_registers_box = HorizontalBox::new(&ui);
-    let mut debug_labels_boxes = vec![VerticalBox::new(&ui), VerticalBox::new(&ui)];
     let mut debug_group = Group::new(&ui, "Debugging");
     let mut debug_controls_group = Group::new(&ui, "Debugging Controls");
     let mut debug_registers_group = Group::new(&ui, "R3000A Registers");
-    let debug_spacer = Spacer::new(&ui);
-
+    let mut debug_registers_grid = LayoutGrid::new(&ui);
 
     // Debugger controls
     let mut debug_cpu_run = Button:: new(&ui, "Run");
@@ -98,34 +101,34 @@ fn main() {
     debug_controls_box.append(&ui, debug_set_breakpoint.clone(), LayoutStrategy::Compact);
     debug_controls_box.append(&ui, debug_status_label.clone(), LayoutStrategy::Compact);
 
+    debug_registers_grid.set_padded(&ui, true);
+
     for index in 0..16 {
         let label = debug_labels[index].clone();
-        debug_labels_boxes[0].append(&ui, label, LayoutStrategy::Compact);
+        debug_registers_grid.append(&ui, label, 1, index as i32, 10, 1, GridExpand::Neither, GridAlignment::Start, GridAlignment::Center);
     }
 
     for index in 16..32 {
         let label = debug_labels[index].clone();
-        debug_labels_boxes[1].append(&ui, label, LayoutStrategy::Compact);
+        debug_registers_grid.append(&ui, label, 5, index as i32 - 16, 20, 1, GridExpand::Neither, GridAlignment::End, GridAlignment::Center);
     }
 
-    debug_registers_box.append(&ui, debug_labels_boxes[0].clone(), LayoutStrategy::Compact);
-    debug_registers_box.append(&ui, debug_spacer, LayoutStrategy::Stretchy);
-    debug_registers_box.append(&ui, debug_labels_boxes[1].clone(), LayoutStrategy::Compact);
+    debug_registers_grid.append(&ui, debug_hi.clone(), 35, 0, 1, 1, GridExpand::Neither, GridAlignment::Center, GridAlignment::Center);
+    debug_registers_grid.append(&ui, debug_lo.clone(), 35, 1, 1, 1, GridExpand::Neither, GridAlignment::Center, GridAlignment::Center);
+    debug_registers_grid.append(&ui, debug_pc.clone(), 35, 2, 1, 1, GridExpand::Neither, GridAlignment::Center, GridAlignment::Center);
+    
+    debug_registers_box.append(&ui, debug_registers_grid, LayoutStrategy::Compact);
     
     debug_controls_group.set_child(&ui, debug_controls_box);
     debug_registers_group.set_child(&ui, debug_registers_box);
     debug_main_box.append(&ui, debug_controls_group, LayoutStrategy::Compact);
     debug_main_box.append(&ui, debug_registers_group, LayoutStrategy::Compact);
-    debug_main_box.append(&ui, debug_pc.clone(), LayoutStrategy::Compact);
-    debug_main_box.append(&ui, debug_hi.clone(), LayoutStrategy::Compact);
-    debug_main_box.append(&ui, debug_lo.clone(), LayoutStrategy::Compact);
-    debug_main_box.append(&ui, debug_current_inst.clone(), LayoutStrategy::Stretchy);
-    debug_main_box.append(&ui, debug_next_inst.clone(), LayoutStrategy::Stretchy);
+    debug_main_box.append(&ui, debug_current_inst.clone(), LayoutStrategy::Compact);
+    debug_main_box.append(&ui, debug_next_inst.clone(), LayoutStrategy::Compact);
 
     debug_group.set_child(&ui, debug_main_box);
     debug_group.set_margined(&ui, true);
     tab_control.append(&ui, "CPU Debugger", debug_group);
-    
     
     window.set_child(&ui, tab_control);
     window.show(&ui);
@@ -155,8 +158,8 @@ fn main() {
 
     emu_start_button.on_clicked(&ui, {
         |_| {
-            debug_mode = false;
             cpu.cpu_paused = false;
+            debug_mode = false;
         }
     });
 
@@ -189,56 +192,42 @@ fn main() {
             debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc).as_str());
 
             if cpu.current_instruction.op() != 0 {
-                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
                     primary_table.get(&cpu.current_instruction.op()).unwrap(),
                     cpu.current_instruction.rs(),
                     cpu.current_instruction.rd(),
                     cpu.current_instruction.rt(),
-                    cpu.current_instruction.shift(),
-                    cpu.current_instruction.immediate(),
-                    cpu.current_instruction.target(),
                 );
-
                 debug_current_inst.set_text(&ui, label.as_str());
             }
             else {
-                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
                     secondary_table.get(&cpu.current_instruction.op()).unwrap(),
                     cpu.current_instruction.rs(),
                     cpu.current_instruction.rd(),
                     cpu.current_instruction.rt(),
-                    cpu.current_instruction.shift(),
-                    cpu.current_instruction.immediate(),
-                    cpu.current_instruction.target(),
-                    );
+                );
+                debug_current_inst.set_text(&ui, label.as_str());
+            }
 
-                    debug_current_inst.set_text(&ui, label.as_str());
-                }
-
-                if cpu.next_instruction.op() != 0 {
-                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
-                        primary_table.get(&cpu.next_instruction.op()).unwrap(),
-                        cpu.next_instruction.rs(),
-                        cpu.next_instruction.rd(),
-                        cpu.next_instruction.rt(),
-                        cpu.next_instruction.shift(),
-                        cpu.next_instruction.immediate(),
-                        cpu.next_instruction.target(),
-                    );
-                    debug_next_inst.set_text(&ui, label.as_str());
-                }
-                else {
-                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
-                        secondary_table.get(&cpu.next_instruction.op()).unwrap(),
-                        cpu.next_instruction.rs(),
-                        cpu.next_instruction.rd(),
-                        cpu.next_instruction.rt(),
-                        cpu.next_instruction.shift(),
-                        cpu.next_instruction.immediate(),
-                        cpu.next_instruction.target(),
-                    );
-                    debug_next_inst.set_text(&ui, label.as_str());
-                }
+            if cpu.next_instruction.op() != 0 {
+                let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
+                    primary_table.get(&cpu.next_instruction.op()).unwrap(),
+                    cpu.next_instruction.rs(),
+                    cpu.next_instruction.rd(),
+                    cpu.next_instruction.rt(),
+                );
+                debug_next_inst.set_text(&ui, label.as_str());
+            }
+            else {
+                let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
+                    secondary_table.get(&cpu.next_instruction.op()).unwrap(),
+                    cpu.next_instruction.rs(),
+                    cpu.next_instruction.rd(),
+                    cpu.next_instruction.rt(),
+                );
+                debug_next_inst.set_text(&ui, label.as_str());
+            }
         }
     });
 
@@ -320,53 +309,41 @@ fn main() {
                 debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc).as_str());
 
                 if cpu.current_instruction.op() != 0 {
-                    let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                    let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
                         primary_table.get(&cpu.current_instruction.op()).unwrap(),
                         cpu.current_instruction.rs(),
                         cpu.current_instruction.rd(),
                         cpu.current_instruction.rt(),
-                        cpu.current_instruction.shift(),
-                        cpu.current_instruction.immediate(),
-                        cpu.current_instruction.target(),
                     );
 
                     debug_current_inst.set_text(&ui, label.as_str());
                 }
                 else {
-                    let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                    let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
                         secondary_table.get(&cpu.current_instruction.op()).unwrap(),
                         cpu.current_instruction.rs(),
                         cpu.current_instruction.rd(),
                         cpu.current_instruction.rt(),
-                        cpu.current_instruction.shift(),
-                        cpu.current_instruction.immediate(),
-                        cpu.current_instruction.target(),
                     );
 
                     debug_current_inst.set_text(&ui, label.as_str());
                 }
 
                 if cpu.next_instruction.op() != 0 {
-                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
                         primary_table.get(&cpu.next_instruction.op()).unwrap(),
                         cpu.next_instruction.rs(),
                         cpu.next_instruction.rd(),
                         cpu.next_instruction.rt(),
-                        cpu.next_instruction.shift(),
-                        cpu.next_instruction.immediate(),
-                        cpu.next_instruction.target(),
                     );
                     debug_next_inst.set_text(&ui, label.as_str());
                 }
                 else {
-                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}, shift: {}, immediate: {:08X}, target address: {:08X}",
+                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
                         secondary_table.get(&cpu.next_instruction.op()).unwrap(),
                         cpu.next_instruction.rs(),
                         cpu.next_instruction.rd(),
                         cpu.next_instruction.rt(),
-                        cpu.next_instruction.shift(),
-                        cpu.next_instruction.immediate(),
-                        cpu.next_instruction.target(),
                     );
                     debug_next_inst.set_text(&ui, label.as_str());
                 }
