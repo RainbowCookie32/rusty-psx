@@ -294,7 +294,7 @@ impl Cpu {
         }
 
         for breakpoint in self.debugger_breakpoints.iter() {
-            if self.pc == *breakpoint {
+            if self.pc - 4 == *breakpoint {
                 return CycleResult::Breakpoint;
             }
         }

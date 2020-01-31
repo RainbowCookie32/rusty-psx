@@ -3,7 +3,7 @@ use std::path::{PathBuf};
 use cpu::CycleResult;
 
 use iui::prelude::*;
-use iui::controls::{Button, Entry, Group, GridAlignment, GridExpand, Label, LayoutGrid, Spacer, TabGroup, HorizontalBox, VerticalBox};
+use iui::controls::{Button, Entry, Group, GridAlignment, GridExpand, Label, LayoutGrid, TabGroup, HorizontalBox, VerticalBox};
 
 mod cpu;
 mod memory;
@@ -90,7 +90,6 @@ fn main() {
     let mut debug_hi = Label::new(&ui, &String::from(format!("hi: {:08X}", 0)));
     let mut debug_lo = Label::new(&ui, &String::from(format!("lo: {:08X}", 0)));
     let mut debug_pc = Label::new(&ui, &String::from(format!("PC: {:08X}", 0)));
-    let mut debug_next_inst = Label::new(&ui, &String::from(format!("Next Instruction: {:08X}", 0)));
     let mut debug_current_inst = Label::new(&ui, &String::from(format!("Instruction: {:08X}", 0)));
 
     debug_controls_box.append(&ui, debug_start_debug.clone(), LayoutStrategy::Compact);
@@ -124,7 +123,6 @@ fn main() {
     debug_main_box.append(&ui, debug_controls_group, LayoutStrategy::Compact);
     debug_main_box.append(&ui, debug_registers_group, LayoutStrategy::Compact);
     debug_main_box.append(&ui, debug_current_inst.clone(), LayoutStrategy::Compact);
-    debug_main_box.append(&ui, debug_next_inst.clone(), LayoutStrategy::Compact);
 
     debug_group.set_child(&ui, debug_main_box);
     debug_group.set_margined(&ui, true);
@@ -169,6 +167,12 @@ fn main() {
         }
     });
 
+    emu_reset_button.on_clicked(&ui, {
+        |_| {
+            cpu = cpu::Cpu::new();
+        }
+    });
+
     debug_cpu_run.on_clicked(&ui, {
         |_| {
             cpu.cpu_paused = false;
@@ -208,25 +212,6 @@ fn main() {
                     cpu.current_instruction.rt(),
                 );
                 debug_current_inst.set_text(&ui, label.as_str());
-            }
-
-            if cpu.next_instruction.op() != 0 {
-                let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
-                    primary_table.get(&cpu.next_instruction.op()).unwrap(),
-                    cpu.next_instruction.rs(),
-                    cpu.next_instruction.rd(),
-                    cpu.next_instruction.rt(),
-                );
-                debug_next_inst.set_text(&ui, label.as_str());
-            }
-            else {
-                let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
-                    secondary_table.get(&cpu.next_instruction.op()).unwrap(),
-                    cpu.next_instruction.rs(),
-                    cpu.next_instruction.rd(),
-                    cpu.next_instruction.rt(),
-                );
-                debug_next_inst.set_text(&ui, label.as_str());
             }
         }
     });
@@ -306,7 +291,9 @@ fn main() {
     
                 debug_hi.set_text(&ui, format!("hi: {:08X}", cpu.hi).as_str());
                 debug_lo.set_text(&ui, format!("lo: {:08X}", cpu.lo).as_str());
-                debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc).as_str());
+                // With the way the prefetch is emulated, the PC is always 4 bytes ahead from the current 
+                // instruction being executed. Substract 4 so it's accurate to the current CPU status.
+                debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc - 4).as_str());
 
                 if cpu.current_instruction.op() != 0 {
                     let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
@@ -327,25 +314,6 @@ fn main() {
                     );
 
                     debug_current_inst.set_text(&ui, label.as_str());
-                }
-
-                if cpu.next_instruction.op() != 0 {
-                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
-                        primary_table.get(&cpu.next_instruction.op()).unwrap(),
-                        cpu.next_instruction.rs(),
-                        cpu.next_instruction.rd(),
-                        cpu.next_instruction.rt(),
-                    );
-                    debug_next_inst.set_text(&ui, label.as_str());
-                }
-                else {
-                    let label = format!("Next Instruction: {}, rs: {}, rd: {}, rt: {}",
-                        secondary_table.get(&cpu.next_instruction.op()).unwrap(),
-                        cpu.next_instruction.rs(),
-                        cpu.next_instruction.rd(),
-                        cpu.next_instruction.rt(),
-                    );
-                    debug_next_inst.set_text(&ui, label.as_str());
                 }
             }
             else {
