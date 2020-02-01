@@ -193,7 +193,7 @@ fn main() {
 
             debug_hi.set_text(&ui, format!("hi: {:08X}", cpu.hi).as_str());
             debug_lo.set_text(&ui, format!("lo: {:08X}", cpu.lo).as_str());
-            debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc).as_str());
+            debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc - 4).as_str());
 
             if cpu.current_instruction.op() != 0 {
                 let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
@@ -267,13 +267,13 @@ fn main() {
                     debug_mode = true;
                     cpu.cpu_paused = true;
                     ui.set_enabled(debug_cpu_step.clone(), true);
-                    debug_status_label.set_text(&ui, format!("CPU emulation stopped on a breakpoint at PC 0x{:08X}", cpu.pc).as_str());
+                    debug_status_label.set_text(&ui, format!("CPU emulation stopped on a breakpoint at PC 0x{:08X}", cpu.pc - 4).as_str());
                 },
                 CycleResult::Error => {
                     debug_mode = true;
                     cpu.cpu_paused = true;
                     ui.set_enabled(debug_cpu_step.clone(), false);
-                    debug_status_label.set_text(&ui, format!("CPU emulation errored at PC 0x{:08X}", cpu.pc).as_str());
+                    debug_status_label.set_text(&ui, format!("CPU emulation errored at PC 0x{:08X}", cpu.pc - 4).as_str());
                 },
                 CycleResult::Success => {
                     debug_status_label.set_text(&ui, "Running");
