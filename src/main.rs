@@ -69,24 +69,7 @@ fn main() {
     let mut debug_status_label = Label::new(&ui, "Waiting...");
 
     // Registers labels
-    let mut debug_labels = vec![
-    Label::new(&ui, &String::from(format!("r0: {:08X}", 0))), Label::new(&ui, &String::from(format!("r1: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r2: {:08X}", 0))), Label::new(&ui, &String::from(format!("r3: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r4: {:08X}", 0))), Label::new(&ui, &String::from(format!("r5: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r6: {:08X}", 0))), Label::new(&ui, &String::from(format!("r7: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r8: {:08X}", 0))), Label::new(&ui, &String::from(format!("r9: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r10: {:08X}", 0))), Label::new(&ui, &String::from(format!("r11: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r12: {:08X}", 0))), Label::new(&ui, &String::from(format!("r13: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r14: {:08X}", 0))), Label::new(&ui, &String::from(format!("r15: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r16: {:08X}", 0))), Label::new(&ui, &String::from(format!("r17: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r18: {:08X}", 0))), Label::new(&ui, &String::from(format!("r19: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r20: {:08X}", 0))), Label::new(&ui, &String::from(format!("r21: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r22: {:08X}", 0))), Label::new(&ui, &String::from(format!("r23: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r24: {:08X}", 0))), Label::new(&ui, &String::from(format!("r25: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r26: {:08X}", 0))), Label::new(&ui, &String::from(format!("r27: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r28: {:08X}", 0))), Label::new(&ui, &String::from(format!("r29: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r30: {:08X}", 0))), Label::new(&ui, &String::from(format!("r31: {:08X}", 0)))];
-
+    let mut debug_labels = create_registers_labels(&ui);
     let mut debug_hi = Label::new(&ui, &String::from(format!("hi: {:08X}", 0)));
     let mut debug_lo = Label::new(&ui, &String::from(format!("lo: {:08X}", 0)));
     let mut debug_pc = Label::new(&ui, &String::from(format!("PC: {:08X}", 0)));
@@ -128,6 +111,8 @@ fn main() {
     debug_group.set_margined(&ui, true);
     tab_control.append(&ui, "CPU Debugger", debug_group);
     
+    tab_control.set_margined(&ui, 0, true);
+    tab_control.set_margined(&ui, 1, true);
     window.set_child(&ui, tab_control);
     window.show(&ui);
 
@@ -329,4 +314,24 @@ fn main() {
         
         should_run = ui_events.next_tick(&ui);
     }
+}
+
+fn create_registers_labels(ui: &UI) -> Vec<Label> {
+    vec![
+    Label::new(&ui, &String::from(format!("r0: {:08X}", 0))), Label::new(&ui, &String::from(format!("r1: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r2: {:08X}", 0))), Label::new(&ui, &String::from(format!("r3: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r4: {:08X}", 0))), Label::new(&ui, &String::from(format!("r5: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r6: {:08X}", 0))), Label::new(&ui, &String::from(format!("r7: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r8: {:08X}", 0))), Label::new(&ui, &String::from(format!("r9: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r10: {:08X}", 0))), Label::new(&ui, &String::from(format!("r11: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r12: {:08X}", 0))), Label::new(&ui, &String::from(format!("r13: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r14: {:08X}", 0))), Label::new(&ui, &String::from(format!("r15: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r16: {:08X}", 0))), Label::new(&ui, &String::from(format!("r17: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r18: {:08X}", 0))), Label::new(&ui, &String::from(format!("r19: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r20: {:08X}", 0))), Label::new(&ui, &String::from(format!("r21: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r22: {:08X}", 0))), Label::new(&ui, &String::from(format!("r23: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r24: {:08X}", 0))), Label::new(&ui, &String::from(format!("r25: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r26: {:08X}", 0))), Label::new(&ui, &String::from(format!("r27: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r28: {:08X}", 0))), Label::new(&ui, &String::from(format!("r29: {:08X}", 0))),
+    Label::new(&ui, &String::from(format!("r30: {:08X}", 0))), Label::new(&ui, &String::from(format!("r31: {:08X}", 0)))]
 }
