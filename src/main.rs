@@ -46,7 +46,7 @@ fn main() {
         sdl2_imgui.prepare_frame(imgui_context.io_mut(), &main_window, &sdl_events.mouse_state());
         let imgui_frame = imgui_context.frame();
 
-        Window::new(im_str!("Rusty PSX - Emulation")).size([300.0, 350.0], Condition::Once).build(&imgui_frame, || {
+        Window::new(im_str!("Rusty PSX - Emulation")).size([300.0, 350.0], Condition::FirstUseEver).build(&imgui_frame, || {
             imgui_frame.text("Emulation Controls");
             imgui_frame.separator();
             imgui_frame.spacing();
@@ -76,7 +76,7 @@ fn main() {
         });
 
         if show_debugger {
-            Window::new(im_str!("Rusty PSX - Debugger")).size([400.0, 400.0], Condition::Once).build(&imgui_frame, || {
+            Window::new(im_str!("Rusty PSX - Debugger")).size([400.0, 400.0], Condition::FirstUseEver).build(&imgui_frame, || {
                 imgui_frame.text("Debugger Controls");
                 imgui_frame.separator();
                 if imgui_frame.button(im_str!("Run"), [120.0, 20.0]) {
@@ -158,7 +158,7 @@ fn main() {
                 imgui_frame.next_column(); imgui_frame.next_column();
             });
 
-            Window::new(im_str!("Rusty PSX - RAM Viewer")).size([470.0, 300.0], Condition::Always).build(&imgui_frame, || {
+            Window::new(im_str!("Rusty PSX - Memory Viewer")).size([470.0, 300.0], Condition::FirstUseEver).build(&imgui_frame, || {
 
                 imgui_frame.input_text(im_str!("Memory Range Start"), &mut range_start_str).chars_hexadecimal(true).build();
                 if imgui_frame.input_text(im_str!("Memory Range End"), &mut range_end_str).chars_hexadecimal(true).enter_returns_true(true).build() {
