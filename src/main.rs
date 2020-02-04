@@ -14,7 +14,7 @@ fn main() {
     let sdl_context = sdl2::init().unwrap();
     let sdl_video = sdl_context.video().unwrap();
     let mut sdl_events = sdl_context.event_pump().unwrap();
-    let main_window = sdl_video.window("Rusty PSX - Main Window", 950, 550).position_centered().opengl().resizable().build().unwrap();
+    let main_window = sdl_video.window("Rusty PSX - Main Window", 1280, 720).position_centered().opengl().resizable().build().unwrap();
     let _gl_context = main_window.gl_create_context().expect("Failed to create OpenGL context");
     gl::load_with(|s| sdl_video.gl_get_proc_address(s) as _);
     sdl_video.gl_set_swap_interval(0).unwrap();
@@ -112,6 +112,9 @@ fn main() {
                         imgui_frame.text_colored([0.0, 1.0, 0.0, 1.0], "Running...");
                     },
                 }
+                let mut instruction = String::from("Instruction: ");
+                instruction.push_str(instructions_table::get_instruction_info(&current_cpu.current_instruction).as_str());
+                imgui_frame.text(instruction);
                 imgui_frame.spacing();
                 imgui_frame.separator();
                 imgui_frame.text("R3000A Main Registers");
@@ -151,6 +154,8 @@ fn main() {
                 imgui_frame.next_column();
                 imgui_frame.spacing();
                 imgui_frame.text(format!("lo {:08X}", current_cpu.lo));
+                imgui_frame.spacing();
+                imgui_frame.next_column(); imgui_frame.next_column();
             });
 
             Window::new(im_str!("Rusty PSX - RAM Viewer")).size([470.0, 300.0], Condition::Always).build(&imgui_frame, || {
