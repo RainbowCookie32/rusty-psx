@@ -6,6 +6,7 @@ use super::memory;
 
 #[derive(PartialEq)]
 pub enum CycleResult {
+    None,
     Error,
     Success,
     Breakpoint,
@@ -103,7 +104,7 @@ impl Cpu {
             branch_delay: false,
 
             cpu_paused: true,
-            cpu_result: CycleResult::Success,
+            cpu_result: CycleResult::None,
             debugger_breakpoints: Vec::new(),
         }
     }
@@ -294,7 +295,7 @@ impl Cpu {
         }
 
         for breakpoint in self.debugger_breakpoints.iter() {
-            if self.pc - 4 == *breakpoint {
+            if self.pc == *breakpoint {
                 return CycleResult::Breakpoint;
             }
         }
