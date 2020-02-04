@@ -1,6 +1,6 @@
 mod cpu;
 mod memory;
-mod instructions_table;
+mod instructions_decoder;
 
 use sdl2;
 use sdl2::event::Event;
@@ -113,7 +113,7 @@ fn main() {
                     },
                 }
                 let mut instruction = String::from("Instruction: ");
-                instruction.push_str(instructions_table::get_instruction_info(&current_cpu.current_instruction).as_str());
+                instruction.push_str(instructions_decoder::get_instruction_info(&current_cpu.current_instruction).as_str());
                 imgui_frame.text(instruction);
                 imgui_frame.spacing();
                 imgui_frame.separator();
