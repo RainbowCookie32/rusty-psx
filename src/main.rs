@@ -1,337 +1,224 @@
-use std::path::{PathBuf};
-
-use cpu::CycleResult;
-
-use iui::prelude::*;
-use iui::controls::{Button, Entry, Group, GridAlignment, GridExpand, Label, LayoutGrid, TabGroup, HorizontalBox, VerticalBox};
-
 mod cpu;
 mod memory;
-mod instructions_table;
+mod instructions_decoder;
+
+use sdl2;
+use sdl2::event::Event;
+
+use imgui::*;
+use imgui_sdl2;
+use imgui_opengl_renderer;
 
 
 fn main() {
+    let sdl_context = sdl2::init().unwrap();
+    let sdl_video = sdl_context.video().unwrap();
+    let mut sdl_events = sdl_context.event_pump().unwrap();
+    let main_window = sdl_video.window("Rusty PSX - Main Window", 1280, 720).position_centered().opengl().resizable().build().unwrap();
+    let _gl_context = main_window.gl_create_context().expect("Failed to create OpenGL context");
+    gl::load_with(|s| sdl_video.gl_get_proc_address(s) as _);
+    sdl_video.gl_set_swap_interval(0).unwrap();
 
-    let mut ui = UI::init().expect("Failed to initialize libui");
-    let mut window = Window::new(&ui, "Rusty PSX", 600, 400, WindowType::NoMenubar);
-    let mut ui_events = ui.event_loop();
+    // Init IMGUI
+    let mut imgui_context = imgui::Context::create();
+    let mut sdl2_imgui = imgui_sdl2::ImguiSdl2::new(&mut imgui_context, &main_window);
+    let imgui_renderer = imgui_opengl_renderer::Renderer::new(&mut imgui_context, |s| sdl_video.gl_get_proc_address(s) as _);
 
-    let mut tab_control = TabGroup::new(&ui);
+    let mut current_cpu = cpu::Cpu::new();
+    let mut show_debugger = false;
+    let mut cpu_stepping = false;
+    let mut last_cycle = cpu::CycleResult::None;
+    let mut cpu_breakpoint = ImString::with_capacity(8);
+    let mut range_start_str = ImString::with_capacity(8);
+    let mut range_end_str = ImString::with_capacity(8);
+    let mut range_start = 0;
+    let mut range_end = 0;
 
-    let mut emu_tab_box = VerticalBox::new(&ui);
-    
-    let mut bios_path = PathBuf::new();
-    let mut bios_label_text = String::new();
-    let mut bios_box = VerticalBox::new(&ui);
-    let mut bios_group = Group::new(&ui, "BIOS\n");
-    let mut bios_label = Label::new(&ui, &String::from("BIOS not loaded\n"));
-    let mut bios_button = Button::new(&ui, "Load BIOS");
-
-    let mut emu_box = VerticalBox::new(&ui);
-    let mut emu_group = Group::new(&ui, "Emulation\n");
-    let mut emu_start_button = Button::new(&ui, "Start Emulation");
-    let mut emu_pause_button = Button::new(&ui, "Pause");
-    let mut emu_reset_button = Button::new(&ui, "Reset");
-
-    bios_box.set_padded(&ui, true);
-    bios_box.append(&ui, bios_label.clone(), LayoutStrategy::Compact);
-    bios_box.append(&ui, bios_button.clone(), LayoutStrategy::Compact);
-    bios_group.set_child(&ui, bios_box);
-    bios_group.set_margined(&ui, true);
-
-    emu_box.set_padded(&ui, true);
-    emu_box.append(&ui, emu_start_button.clone(), LayoutStrategy::Compact);
-    emu_box.append(&ui, emu_pause_button.clone(), LayoutStrategy::Compact);
-    emu_box.append(&ui, emu_reset_button.clone(), LayoutStrategy::Compact);
-    emu_group.set_child(&ui, emu_box);
-    emu_group.set_margined(&ui, true);
-
-    emu_tab_box.append(&ui, bios_group, LayoutStrategy::Compact);
-    emu_tab_box.append(&ui, emu_group, LayoutStrategy::Compact);
-    tab_control.append(&ui, "General", emu_tab_box);
-
-    
-    let mut debug_main_box = VerticalBox::new(&ui);
-    let mut debug_controls_box = VerticalBox::new(&ui);
-    let mut debug_registers_box = HorizontalBox::new(&ui);
-    let mut debug_group = Group::new(&ui, "Debugging");
-    let mut debug_controls_group = Group::new(&ui, "Debugging Controls");
-    let mut debug_registers_group = Group::new(&ui, "R3000A Registers");
-    let mut debug_registers_grid = LayoutGrid::new(&ui);
-
-    // Debugger controls
-    let mut debug_cpu_run = Button:: new(&ui, "Run");
-    let mut debug_cpu_pause = Button:: new(&ui, "Pause");
-    let mut debug_cpu_step = Button:: new(&ui, "CPU Step");
-    let mut debug_start_debug = Button::new(&ui, "Run and Break");
-    let mut debug_breakpoint_entry = Entry::new(&ui);
-    let mut debug_set_breakpoint = Button::new(&ui, "Set Breakpoint");
-    let mut debug_status_label = Label::new(&ui, "Waiting...");
-
-    // Registers labels
-    let mut debug_labels = create_registers_labels(&ui);
-    let mut debug_hi = Label::new(&ui, &String::from(format!("hi: {:08X}", 0)));
-    let mut debug_lo = Label::new(&ui, &String::from(format!("lo: {:08X}", 0)));
-    let mut debug_pc = Label::new(&ui, &String::from(format!("PC: {:08X}", 0)));
-    let mut debug_current_inst = Label::new(&ui, &String::from(format!("Instruction: {:08X}", 0)));
-
-    debug_controls_box.append(&ui, debug_start_debug.clone(), LayoutStrategy::Compact);
-    debug_controls_box.append(&ui, debug_cpu_run.clone(), LayoutStrategy::Compact);
-    debug_controls_box.append(&ui, debug_cpu_pause.clone(), LayoutStrategy::Compact);
-    debug_controls_box.append(&ui, debug_cpu_step.clone(), LayoutStrategy::Compact);
-    debug_controls_box.append(&ui, debug_breakpoint_entry.clone(), LayoutStrategy::Compact);
-    debug_controls_box.append(&ui, debug_set_breakpoint.clone(), LayoutStrategy::Compact);
-    debug_controls_box.append(&ui, debug_status_label.clone(), LayoutStrategy::Compact);
-
-    debug_registers_grid.set_padded(&ui, true);
-
-    for index in 0..16 {
-        let label = debug_labels[index].clone();
-        debug_registers_grid.append(&ui, label, 1, index as i32, 10, 1, GridExpand::Neither, GridAlignment::Start, GridAlignment::Center);
-    }
-
-    for index in 16..32 {
-        let label = debug_labels[index].clone();
-        debug_registers_grid.append(&ui, label, 5, index as i32 - 16, 20, 1, GridExpand::Neither, GridAlignment::End, GridAlignment::Center);
-    }
-
-    debug_registers_grid.append(&ui, debug_hi.clone(), 35, 0, 1, 1, GridExpand::Neither, GridAlignment::Center, GridAlignment::Center);
-    debug_registers_grid.append(&ui, debug_lo.clone(), 35, 1, 1, 1, GridExpand::Neither, GridAlignment::Center, GridAlignment::Center);
-    debug_registers_grid.append(&ui, debug_pc.clone(), 35, 2, 1, 1, GridExpand::Neither, GridAlignment::Center, GridAlignment::Center);
-    
-    debug_registers_box.append(&ui, debug_registers_grid, LayoutStrategy::Compact);
-    
-    debug_controls_group.set_child(&ui, debug_controls_box);
-    debug_registers_group.set_child(&ui, debug_registers_box);
-    debug_main_box.append(&ui, debug_controls_group, LayoutStrategy::Compact);
-    debug_main_box.append(&ui, debug_registers_group, LayoutStrategy::Compact);
-    debug_main_box.append(&ui, debug_current_inst.clone(), LayoutStrategy::Compact);
-
-    debug_group.set_child(&ui, debug_main_box);
-    debug_group.set_margined(&ui, true);
-    tab_control.append(&ui, "CPU Debugger", debug_group);
-    
-    tab_control.set_margined(&ui, 0, true);
-    tab_control.set_margined(&ui, 1, true);
-    window.set_child(&ui, tab_control);
-    window.show(&ui);
-
-    
-    let mut should_run = true;
-    let mut debug_mode = true;
-    let mut cpu = cpu::Cpu::new();
-    let mut last_cycle = CycleResult::Success;
-    let mut can_set_breakpoint = false;
-    let mut breakpoint_addr = String::new();
-
-    let primary_table = instructions_table::make_primary_opcodes_hashmap();
-    let secondary_table = instructions_table::make_secondary_opcodes_hashmap();
-
-    bios_button.on_clicked(&ui, {
-        |_| {
-            if let Some(path) = window.open_file(&ui) {
-                bios_path = path;
-                bios_label_text.push_str("BIOS path: ");
-                bios_label_text.push_str(bios_path.to_str().unwrap());
-                bios_label_text.push_str("\n");
-                bios_label.set_text(&ui, bios_label_text.as_str());
+    'render_loop: loop {
+        for event in sdl_events.poll_iter() {
+            sdl2_imgui.handle_event(&mut imgui_context, &event);
+            match event {
+                Event::Quit {..} => break 'render_loop,
+                _ => {}
             }
         }
-    });
 
-    emu_start_button.on_clicked(&ui, {
-        |_| {
-            cpu.cpu_paused = false;
-            debug_mode = false;
-        }
-    });
+        sdl2_imgui.prepare_frame(imgui_context.io_mut(), &main_window, &sdl_events.mouse_state());
+        let imgui_frame = imgui_context.frame();
 
-    emu_pause_button.on_clicked(&ui, {
-        |_| {
-            cpu.cpu_paused = true;
-        }
-    });
+        Window::new(im_str!("Rusty PSX - Emulation")).size([300.0, 350.0], Condition::FirstUseEver).build(&imgui_frame, || {
+            imgui_frame.text("Emulation Controls");
+            imgui_frame.separator();
+            imgui_frame.spacing();
 
-    emu_reset_button.on_clicked(&ui, {
-        |_| {
-            cpu = cpu::Cpu::new();
-        }
-    });
-
-    debug_cpu_run.on_clicked(&ui, {
-        |_| {
-            cpu.cpu_paused = false;
-            debug_mode = false;
-        }
-    });
-
-    debug_cpu_pause.on_clicked(&ui, {
-        |_| {
-            let mut ui = ui.clone();
-            cpu.cpu_paused = true;
-            debug_mode = true;
-            ui.set_enabled(debug_cpu_step.clone(), true);
-            for index in 0..32 {
-                let value = cpu.registers[index];
-                debug_labels[index].set_text(&ui, format!("r{}: {:08X}", index, value).as_str());
-            }
-
-            debug_hi.set_text(&ui, format!("hi: {:08X}", cpu.hi).as_str());
-            debug_lo.set_text(&ui, format!("lo: {:08X}", cpu.lo).as_str());
-            debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc - 4).as_str());
-
-            if cpu.current_instruction.op() != 0 {
-                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
-                    primary_table.get(&cpu.current_instruction.op()).unwrap(),
-                    cpu.current_instruction.rs(),
-                    cpu.current_instruction.rd(),
-                    cpu.current_instruction.rt(),
-                );
-                debug_current_inst.set_text(&ui, label.as_str());
+            if std::path::PathBuf::from("bios/SCPH1001.bin").exists() {
+                imgui_frame.text_colored([0.0, 1.0, 0.0, 1.0], "BIOS detected and loaded.");
             }
             else {
-                let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
-                    secondary_table.get(&cpu.current_instruction.op()).unwrap(),
-                    cpu.current_instruction.rs(),
-                    cpu.current_instruction.rd(),
-                    cpu.current_instruction.rt(),
-                );
-                debug_current_inst.set_text(&ui, label.as_str());
-            }
-        }
-    });
-
-    debug_cpu_step.on_clicked(&ui, {
-        |_| {
-            cpu.cpu_paused = false;
-            debug_mode = true;
-        }
-    });
-
-    debug_start_debug.on_clicked(&ui, {
-        |_| {
-            cpu.cpu_paused = true;
-            debug_mode = true;
-        }
-    });
-
-    debug_set_breakpoint.on_clicked(&ui, {
-        |_| {
-            let value = breakpoint_addr.as_str();
-            let new_breakpoint: u32 = u32::from_str_radix(value, 16).unwrap();
-            cpu.debugger_breakpoints.push(new_breakpoint);
-        }
-    });
-
-    debug_breakpoint_entry.on_changed(&ui, {
-        |entry| {
-            can_set_breakpoint = entry.len() == 8;
-            breakpoint_addr = entry;
-        }
-    });
-
-    
-
-    while should_run {
-
-        if can_set_breakpoint {
-            ui.set_enabled(debug_set_breakpoint.clone(), true);
-        }
-        else {
-            ui.set_enabled(debug_set_breakpoint.clone(), false);
-        }
-
-        if !cpu.cpu_paused && last_cycle != CycleResult::Error {
-            ui.set_enabled(emu_start_button.clone(), false);
-            ui.set_enabled(debug_start_debug.clone(), false);
-            ui.set_enabled(emu_pause_button.clone(), true);
-            last_cycle = cpu.run_instruction();
-
-            match last_cycle {
-                CycleResult::Breakpoint => {
-                    debug_mode = true;
-                    cpu.cpu_paused = true;
-                    ui.set_enabled(debug_cpu_step.clone(), true);
-                    debug_status_label.set_text(&ui, format!("CPU emulation stopped on a breakpoint at PC 0x{:08X}", cpu.pc - 4).as_str());
-                },
-                CycleResult::Error => {
-                    debug_mode = true;
-                    cpu.cpu_paused = true;
-                    ui.set_enabled(debug_cpu_step.clone(), false);
-                    debug_status_label.set_text(&ui, format!("CPU emulation errored at PC 0x{:08X}", cpu.pc - 4).as_str());
-                },
-                CycleResult::Success => {
-                    debug_status_label.set_text(&ui, "Running");
-                },
+                imgui_frame.text_colored([1.0, 0.0, 0.0, 1.0], "Couldn't find the BIOS file.");
             }
 
-            if debug_mode {
-                cpu.cpu_paused = true;
-                ui.set_enabled(debug_cpu_step.clone(), true);
+            imgui_frame.spacing();
 
-                for index in 0..32 {
-                    let value = cpu.registers[index];
-                    debug_labels[index].set_text(&ui, format!("r{}: {:08X}", index, value).as_str());
+            if imgui_frame.button(im_str!("Start emulation"), [120.0, 20.0]) {
+                current_cpu.cpu_paused = false;
+                cpu_stepping = false;
+            }
+            if imgui_frame.button(im_str!("Pause"), [120.0, 20.0]) {
+                current_cpu.cpu_paused = true;
+            }
+            if imgui_frame.button(im_str!("Restart"), [120.0, 20.0]) {
+                current_cpu = cpu::Cpu::new();
+                cpu_stepping = false;
+                last_cycle = cpu::CycleResult::None;
+            }
+            imgui_frame.checkbox(im_str!("Show debugger"), &mut show_debugger);
+        });
+
+        if show_debugger {
+            Window::new(im_str!("Rusty PSX - Debugger")).size([400.0, 400.0], Condition::FirstUseEver).build(&imgui_frame, || {
+                imgui_frame.text("Debugger Controls");
+                imgui_frame.separator();
+                if imgui_frame.button(im_str!("Run"), [120.0, 20.0]) {
+                    current_cpu.cpu_paused = false;
+                    cpu_stepping = false;
                 }
-    
-                debug_hi.set_text(&ui, format!("hi: {:08X}", cpu.hi).as_str());
-                debug_lo.set_text(&ui, format!("lo: {:08X}", cpu.lo).as_str());
-                // With the way the prefetch is emulated, the PC is always 4 bytes ahead from the current 
-                // instruction being executed. Substract 4 so it's accurate to the current CPU status.
-                debug_pc.set_text(&ui, format!("PC: {:08X}", cpu.pc - 4).as_str());
-
-                if cpu.current_instruction.op() == 0 && cpu.current_instruction.function() == 0 {
-                    debug_current_inst.set_text(&ui, "Instruction: NOP");
+                if imgui_frame.button(im_str!("Pause"), [120.0, 20.0]) {
+                    current_cpu.cpu_paused = true;
+                    last_cycle = cpu::CycleResult::None;
                 }
-                else if cpu.current_instruction.op() != 0 {
-                    let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
-                        primary_table.get(&cpu.current_instruction.op()).unwrap(),
-                        cpu.current_instruction.rs(),
-                        cpu.current_instruction.rd(),
-                        cpu.current_instruction.rt(),
-                    );
-
-                    debug_current_inst.set_text(&ui, label.as_str());
+                if imgui_frame.button(im_str!("CPU Step"), [120.0, 20.0]) {
+                    current_cpu.cpu_paused = false;
+                    cpu_stepping = true;
+                }
+                if imgui_frame.input_text(im_str!("CPU Breakpoint"), &mut cpu_breakpoint).chars_hexadecimal(true).enter_returns_true(true).build() {
+                    let value = u32::from_str_radix(cpu_breakpoint.to_str(), 16).unwrap();
+                    current_cpu.debugger_breakpoints.push(value);
+                    cpu_breakpoint = ImString::with_capacity(8);
+                }
+                match last_cycle {
+                    cpu::CycleResult::None => {
+                        imgui_frame.text_colored([0.0, 0.5, 1.0, 1.0], "Waiting for user input...");
+                    },
+                    cpu::CycleResult::Breakpoint => {
+                        imgui_frame.text_colored([1.0, 1.0, 0.0, 1.0], "CPU found a breakpoint and stopped.");
+                        current_cpu.cpu_paused = true;
+                    },
+                    cpu::CycleResult::Error => {
+                        imgui_frame.text_colored([1.0, 0.0, 0.0, 1.0], "CPU found an error and stopped.");
+                        current_cpu.cpu_paused = true;
+                    },
+                    cpu::CycleResult::Success => {
+                        imgui_frame.text_colored([0.0, 1.0, 0.0, 1.0], "Running...");
+                    },
+                }
+                let mut instruction = String::from("Instruction: ");
+                instruction.push_str(instructions_decoder::get_instruction_info(&current_cpu.current_instruction).as_str());
+                imgui_frame.text(instruction);
+                imgui_frame.spacing();
+                imgui_frame.separator();
+                imgui_frame.text("R3000A Main Registers");
+                imgui_frame.separator();
+                imgui_frame.spacing();
+                imgui_frame.columns(4, im_str!("Register Columns"), false);
+                imgui_frame.text(format!("r0 {:08X}", current_cpu.registers[0])); imgui_frame.text(format!("r1 {:08X}", current_cpu.registers[1]));
+                imgui_frame.text(format!("r2 {:08X}", current_cpu.registers[2])); imgui_frame.text(format!("r3 {:08X}", current_cpu.registers[3]));
+                imgui_frame.text(format!("r4 {:08X}", current_cpu.registers[4])); imgui_frame.text(format!("r5 {:08X}", current_cpu.registers[5]));
+                imgui_frame.text(format!("r6 {:08X}", current_cpu.registers[6])); imgui_frame.text(format!("r7 {:08X}", current_cpu.registers[7]));
+                imgui_frame.next_column();
+                imgui_frame.text(format!("r8 {:08X}", current_cpu.registers[8])); imgui_frame.text(format!("r9 {:08X}", current_cpu.registers[9]));
+                imgui_frame.text(format!("r10 {:08X}", current_cpu.registers[10])); imgui_frame.text(format!("r11 {:08X}", current_cpu.registers[11]));
+                imgui_frame.text(format!("r12 {:08X}", current_cpu.registers[12])); imgui_frame.text(format!("r13 {:08X}", current_cpu.registers[13]));
+                imgui_frame.text(format!("r14 {:08X}", current_cpu.registers[14])); imgui_frame.text(format!("r15 {:08X}", current_cpu.registers[15]));
+                imgui_frame.next_column();
+                imgui_frame.text(format!("r16 {:08X}", current_cpu.registers[16])); imgui_frame.text(format!("r17 {:08X}", current_cpu.registers[17]));
+                imgui_frame.text(format!("r18 {:08X}", current_cpu.registers[18])); imgui_frame.text(format!("r19 {:08X}", current_cpu.registers[19]));
+                imgui_frame.text(format!("r20 {:08X}", current_cpu.registers[20])); imgui_frame.text(format!("r21 {:08X}", current_cpu.registers[21]));
+                imgui_frame.text(format!("r22 {:08X}", current_cpu.registers[22])); imgui_frame.text(format!("r23 {:08X}", current_cpu.registers[23]));
+                imgui_frame.next_column();
+                imgui_frame.text(format!("r24 {:08X}", current_cpu.registers[24])); imgui_frame.text(format!("r25 {:08X}", current_cpu.registers[25]));
+                imgui_frame.text(format!("r26 {:08X}", current_cpu.registers[26])); imgui_frame.text(format!("r27 {:08X}", current_cpu.registers[27]));
+                imgui_frame.text(format!("r28 {:08X}", current_cpu.registers[28])); imgui_frame.text(format!("r29 {:08X}", current_cpu.registers[29]));
+                imgui_frame.text(format!("r30 {:08X}", current_cpu.registers[30])); imgui_frame.text(format!("r31 {:08X}", current_cpu.registers[31]));
+                imgui_frame.next_column();
+                imgui_frame.spacing();
+                if current_cpu.pc == 0xBFC00000 {
+                    imgui_frame.text(format!("PC {:08X}", current_cpu.pc));
                 }
                 else {
-                    let label = format!("Instruction: {}, rs: {}, rd: {}, rt: {}",
-                        secondary_table.get(&cpu.current_instruction.function()).unwrap(),
-                        cpu.current_instruction.rs(),
-                        cpu.current_instruction.rd(),
-                        cpu.current_instruction.rt(),
-                    );
-
-                    debug_current_inst.set_text(&ui, label.as_str());
+                    imgui_frame.text(format!("PC {:08X}", current_cpu.pc - 4));
                 }
-            }
-            else {
-                ui.set_enabled(debug_cpu_step.clone(), false);
-            }
-        }
-        else {
-            ui.set_enabled(emu_pause_button.clone(), false);
-        }
-        
-        should_run = ui_events.next_tick(&ui);
-    }
-}
+                imgui_frame.next_column();
+                imgui_frame.spacing();
+                imgui_frame.text(format!("hi {:08X}", current_cpu.hi));
+                imgui_frame.next_column();
+                imgui_frame.spacing();
+                imgui_frame.text(format!("lo {:08X}", current_cpu.lo));
+                imgui_frame.spacing();
+                imgui_frame.next_column(); imgui_frame.next_column();
+            });
 
-fn create_registers_labels(ui: &UI) -> Vec<Label> {
-    vec![
-    Label::new(&ui, &String::from(format!("r0: {:08X}", 0))), Label::new(&ui, &String::from(format!("r1: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r2: {:08X}", 0))), Label::new(&ui, &String::from(format!("r3: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r4: {:08X}", 0))), Label::new(&ui, &String::from(format!("r5: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r6: {:08X}", 0))), Label::new(&ui, &String::from(format!("r7: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r8: {:08X}", 0))), Label::new(&ui, &String::from(format!("r9: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r10: {:08X}", 0))), Label::new(&ui, &String::from(format!("r11: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r12: {:08X}", 0))), Label::new(&ui, &String::from(format!("r13: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r14: {:08X}", 0))), Label::new(&ui, &String::from(format!("r15: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r16: {:08X}", 0))), Label::new(&ui, &String::from(format!("r17: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r18: {:08X}", 0))), Label::new(&ui, &String::from(format!("r19: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r20: {:08X}", 0))), Label::new(&ui, &String::from(format!("r21: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r22: {:08X}", 0))), Label::new(&ui, &String::from(format!("r23: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r24: {:08X}", 0))), Label::new(&ui, &String::from(format!("r25: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r26: {:08X}", 0))), Label::new(&ui, &String::from(format!("r27: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r28: {:08X}", 0))), Label::new(&ui, &String::from(format!("r29: {:08X}", 0))),
-    Label::new(&ui, &String::from(format!("r30: {:08X}", 0))), Label::new(&ui, &String::from(format!("r31: {:08X}", 0)))]
+            Window::new(im_str!("Rusty PSX - Memory Viewer")).size([470.0, 300.0], Condition::FirstUseEver).build(&imgui_frame, || {
+
+                imgui_frame.input_text(im_str!("Memory Range Start"), &mut range_start_str).chars_hexadecimal(true).build();
+                if imgui_frame.input_text(im_str!("Memory Range End"), &mut range_end_str).chars_hexadecimal(true).enter_returns_true(true).build() {
+                    range_start = u32::from_str_radix(range_start_str.to_str(), 16).unwrap();
+                    range_end = u32::from_str_radix(range_end_str.to_str(), 16).unwrap();
+                }
+
+                imgui_frame.spacing();
+                imgui_frame.text_colored([1.0, 0.0, 0.0, 1.0], "High ranges can cause low performance on the debugger.");
+                imgui_frame.spacing();
+                imgui_frame.separator();
+
+                if range_end > range_start {
+                    imgui_frame.columns(17, im_str!("Mem Viewer Columns"), false);
+                    imgui_frame.set_column_width(0, 70.0);
+                    imgui_frame.set_column_width(1, 23.0);
+                    imgui_frame.set_column_width(2, 23.0);
+                    imgui_frame.set_column_width(3, 23.0);
+                    imgui_frame.set_column_width(4, 23.0);
+                    imgui_frame.set_column_width(5, 23.0);
+                    imgui_frame.set_column_width(6, 23.0);
+                    imgui_frame.set_column_width(7, 23.0);
+                    imgui_frame.set_column_width(8, 23.0);
+                    imgui_frame.set_column_width(9, 23.0);
+                    imgui_frame.set_column_width(10, 23.0);
+                    imgui_frame.set_column_width(11, 23.0);
+                    imgui_frame.set_column_width(12, 23.0);
+                    imgui_frame.set_column_width(13, 23.0);
+                    imgui_frame.set_column_width(14, 23.0);
+                    imgui_frame.set_column_width(15, 23.0);
+                    imgui_frame.set_column_width(16, 23.0);
+
+                    let mut address = range_start;
+
+                    while address < range_end {
+                        imgui_frame.text(format!("{:08X}", address));
+                        for offset in 0..16 {
+                            imgui_frame.next_column();
+                            imgui_frame.text(format!("{:02X}", current_cpu.memory.read_byte(address + offset)));
+                        }
+                        address += 16;
+                        imgui_frame.next_column();
+                    }
+                }
+            });
+        }
+
+        unsafe {
+            gl::ClearColor(0.2, 0.2, 0.2, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+        }
+      
+        imgui_renderer.render(imgui_frame);
+        main_window.gl_swap_window();
+
+        if !current_cpu.cpu_paused {
+            last_cycle = current_cpu.run_instruction();
+            if cpu_stepping {
+                current_cpu.cpu_paused = true;
+            }
+        }
+    }
 }
