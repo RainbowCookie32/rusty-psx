@@ -146,7 +146,7 @@ fn main() {
                     imgui_frame.text(format!("PC {:08X}", current_cpu.pc));
                 }
                 else {
-                    imgui_frame.text(format!("PC {:08X}", current_cpu.pc));
+                    imgui_frame.text(format!("PC {:08X}", current_cpu.pc - 4));
                 }
                 imgui_frame.next_column();
                 imgui_frame.spacing();
