@@ -94,7 +94,7 @@ fn main() {
                 if imgui_frame.input_text(im_str!("CPU Breakpoint"), &mut cpu_breakpoint).chars_hexadecimal(true).enter_returns_true(true).build() {
                     let value = u32::from_str_radix(cpu_breakpoint.to_str(), 16).unwrap();
                     current_cpu.debugger_breakpoints.push(value);
-                    println!("Breakpoint: {}", cpu_breakpoint);
+                    cpu_breakpoint = ImString::with_capacity(8);
                 }
                 match last_cycle {
                     cpu::CycleResult::None => {
