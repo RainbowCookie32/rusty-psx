@@ -124,10 +124,13 @@ impl Cpu {
     fn fetch_instruction(&mut self) {
         self.current_instruction = Instruction::new(self.memory.read_word(self.pc));
         self.next_instruction = Instruction::new(self.memory.read_word(self.pc + 4));
-        self.pc = self.pc.wrapping_add(4);
     }
 
     pub fn run_instruction(&mut self) -> CycleResult {
+
+        if self.cpu_result == CycleResult::Breakpoint {
+            self.cpu_result = CycleResult::Success;
+        }
 
         if self.branch_delay {
             self.current_instruction = self.next_instruction;
@@ -294,11 +297,15 @@ impl Cpu {
             _=> {}
         }
 
-        for breakpoint in self.debugger_breakpoints.iter() {
-            if self.pc - 4 == *breakpoint {
+        for index in 0..self.debugger_breakpoints.len() {
+            if self.pc == self.debugger_breakpoints[index] {
+                self.cpu_result = CycleResult::Breakpoint;
+                self.debugger_breakpoints.remove(index);
                 return CycleResult::Breakpoint;
             }
         }
+
+        self.pc = self.pc.wrapping_add(4);
 
         if self.cpu_result == CycleResult::Error {
             CycleResult::Error

@@ -79,6 +79,24 @@ fn main() {
             Window::new(im_str!("Rusty PSX - Debugger")).size([400.0, 400.0], Condition::FirstUseEver).build(&imgui_frame, || {
                 imgui_frame.text("Debugger Controls");
                 imgui_frame.separator();
+                
+                match last_cycle {
+                    cpu::CycleResult::None => {
+                        imgui_frame.text_colored([0.0, 0.5, 1.0, 1.0], "Waiting for user input...");
+                    },
+                    cpu::CycleResult::Breakpoint => {
+                        imgui_frame.text_colored([1.0, 1.0, 0.0, 1.0], "CPU found a breakpoint and stopped.");
+                        current_cpu.cpu_paused = true;
+                    },
+                    cpu::CycleResult::Error => {
+                        imgui_frame.text_colored([1.0, 0.0, 0.0, 1.0], "CPU found an error and stopped.");
+                        current_cpu.cpu_paused = true;
+                    },
+                    cpu::CycleResult::Success => {
+                        imgui_frame.text_colored([0.0, 1.0, 0.0, 1.0], "Running...");
+                    },
+                }
+
                 if imgui_frame.button(im_str!("Run"), [120.0, 20.0]) {
                     current_cpu.cpu_paused = false;
                     cpu_stepping = false;
@@ -96,22 +114,7 @@ fn main() {
                     current_cpu.debugger_breakpoints.push(value);
                     cpu_breakpoint = ImString::with_capacity(8);
                 }
-                match last_cycle {
-                    cpu::CycleResult::None => {
-                        imgui_frame.text_colored([0.0, 0.5, 1.0, 1.0], "Waiting for user input...");
-                    },
-                    cpu::CycleResult::Breakpoint => {
-                        imgui_frame.text_colored([1.0, 1.0, 0.0, 1.0], "CPU found a breakpoint and stopped.");
-                        current_cpu.cpu_paused = true;
-                    },
-                    cpu::CycleResult::Error => {
-                        imgui_frame.text_colored([1.0, 0.0, 0.0, 1.0], "CPU found an error and stopped.");
-                        current_cpu.cpu_paused = true;
-                    },
-                    cpu::CycleResult::Success => {
-                        imgui_frame.text_colored([0.0, 1.0, 0.0, 1.0], "Running...");
-                    },
-                }
+                
                 let mut instruction = String::from("Instruction: ");
                 instruction.push_str(instructions_decoder::get_instruction_info(&current_cpu.current_instruction).as_str());
                 imgui_frame.text(instruction);
@@ -142,12 +145,7 @@ fn main() {
                 imgui_frame.text(format!("r30 {:08X}", current_cpu.registers[30])); imgui_frame.text(format!("r31 {:08X}", current_cpu.registers[31]));
                 imgui_frame.next_column();
                 imgui_frame.spacing();
-                if current_cpu.pc == 0xBFC00000 {
-                    imgui_frame.text(format!("PC {:08X}", current_cpu.pc));
-                }
-                else {
-                    imgui_frame.text(format!("PC {:08X}", current_cpu.pc - 4));
-                }
+                imgui_frame.text(format!("PC {:08X}", current_cpu.pc));
                 imgui_frame.next_column();
                 imgui_frame.spacing();
                 imgui_frame.text(format!("hi {:08X}", current_cpu.hi));
