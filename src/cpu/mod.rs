@@ -85,8 +85,14 @@ impl Cpu {
 
         bios_file.read_to_end(&mut bios_data).unwrap();
 
-        let memory = memory::CpuMemory::new(bios_data);
+        let mut memory = memory::CpuMemory::new(bios_data);
         let first_op = memory.read_word(0xBFC00000);
+
+        // The initial area of RAM has some values there that the BIOS seems to rely on.
+        memory.write_word(0x00000000, 0x3C1A0000);
+        memory.write_word(0x00000004, 0x275A0000);
+        memory.write_word(0x00000008, 0x34000000);
+        memory.write_word(0x0000000C, 0x00000000);
         
         Cpu {
             pc: 0xBFC00000,
